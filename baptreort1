@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Findings Report</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.3.0/chart.umd.min.js"></script>
+    <style>
+        .report-title {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Document History Section -->
+        <div class="my-4">
+            <img src="https:///logo.png" alt="Logo" style="width: 200px; display: block; margin: 0 auto;">
+            <table class="table table-bordered mt-4">
+                <thead>
+                    <tr>
+                        <th>Report Title</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Prepared By</th>
+                        <th>Reviewed By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="text" class="form-control" id="reportTitle" placeholder="Enter Report Title"></td>
+                        <td><input type="date" class="form-control" id="startDate"></td>
+                        <td><input type="date" class="form-control" id="endDate"></td>
+                        <td><input type="text" class="form-control" id="preparedBy" placeholder="Prepared By"></td>
+                        <td><input type="text" class="form-control" id="reviewedBy" placeholder="Reviewed By"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pie Chart Section -->
+        <canvas id="severityChart" width="400" height="400"></canvas>
+        <table class="table table-bordered mt-3">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody id="severityTable">
+                <tr>
+                    <td>Critical</td>
+                    <td id="criticalCount">0</td>
+                </tr>
+                <tr>
+                    <td>High</td>
+                    <td id="highCount">0</td>
+                </tr>
+                <tr>
+                    <td>Medium</td>
+                    <td id="mediumCount">0</td>
+                </tr>
+                <tr>
+                    <td>Low</td>
+                    <td id="lowCount">0</td>
+                </tr>
+                <tr>
+                    <td>Informational</td>
+                    <td id="infoCount">0</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Index Section -->
+        <h2 class="mt-5">Index</h2>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Severity</th>
+                    <th>Vulnerability ID</th>
+                </tr>
+            </thead>
+            <tbody id="indexTable"></tbody>
+        </table>
+
+        <!-- Findings Section -->
+        <div id="findingsContainer"></div>
+
+        <!-- Print Preview Button -->
+        <button class="btn btn-primary mt-3" onclick="window.print()">Print Preview</button>
+    </div>
+
+    <script>
+        // Function to render paragraphs and replace image patterns
+        function renderParagraph(content) {
+            if (!content) return "";
+
+            // Regular expression to match the image pattern
+            const imagePattern = /!(https:\/\/demo\.defectdojo\.org\/[^\s)]+)/g;
+
+            // Replace image patterns with actual <img> tags
+            const updatedContent = content.replace(imagePattern, (match, url) => {
+                return `<img src="${url}" alt="Embedded Image" style="max-width: 100%; height: auto; margin-top: 10px; margin-bottom: 10px;">`;
+            });
+
+            // Replace line breaks with <br> for proper paragraph formatting
+            return updatedContent.replace(/\n/g, "<br>");
+        }
+
+        async function fetchData() {
+            const apiUrl = "YOUR_API_ENDPOINT"; // Replace with your actual API endpoint
+
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                populateIndexAndFindings(data);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        function populateIndexAndFindings(findings) {
+            const indexTable = document.getElementById("indexTable");
+            const findingsContainer = document.getElementById("findingsContainer");
+
+            let criticalCount = 0, highCount = 0, mediumCount = 0, lowCount = 0, infoCount = 0;
+
+            findings.forEach((finding, index) => {
+                // Update severity counts
+                if (finding.severity === "Critical") criticalCount++;
+                else if (finding.severity === "High") highCount++;
+                else if (finding.severity === "Medium") mediumCount++;
+                else if (finding.severity === "Low") lowCount++;
+                else infoCount++;
+
+                // Populate Index
+                const indexRow = `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${finding.severity}</td>
+                        <td>${finding.vulnerability_id}</td>
+                    </tr>
+                `;
+                indexTable.innerHTML += indexRow;
+
+                // Populate Findings
+                const findingHTML = `
+                    <div class="page-break">
+                        <h3>Finding ${index + 1}</h3>
+                        <p><strong>Severity:</strong> ${finding.severity}</p>
+                        <p><strong>Vulnerability ID:</strong> ${finding.vulnerability_id}</p>
+                        <p><strong>Description:</strong> ${renderParagraph(finding.description)}</p>
+                        <p><strong>Mitigation:</strong> ${renderParagraph(finding.mitigation)}</p>
+                        <p><strong>Impact:</strong> ${renderParagraph(finding.impact)}</p>
+                        <p><strong>Steps to Reproduce:</strong> ${renderParagraph(finding.steps_to_reproduce)}</p>
+                    </div>
+                `;
+                findingsContainer.innerHTML += findingHTML;
+            });
+
+            // Update Severity Counts in Table
+            document.getElementById("criticalCount").innerText = criticalCount;
+            document.getElementById("highCount").innerText = highCount;
+            document.getElementById("mediumCount").innerText = mediumCount;
+            document.getElementById("lowCount").innerText = lowCount;
+            document.getElementById("infoCount").innerText = infoCount;
+
+            // Draw Pie Chart
+            const ctx = document.getElementById("severityChart").getContext("2d");
+            new Chart(ctx, {
+                type: "pie",
+                data: {
+                    labels: ["Critical", "High", "Medium", "Low", "Informational"],
+                    datasets: [{
+                        data: [criticalCount, highCount, mediumCount, lowCount, infoCount],
+                        backgroundColor: ["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF"]
+                    }]
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", fetchData);
+    </script>
+</body>
+</html>
