@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symbol Color Change</title>
+</head>
+<body>
+    <p>This is an example text with symbols: ! [ ] ( ).</p>
+
+    <!-- Fetch Data Button -->
+    <button id="fetchdatabtn">Fetch Data</button>
+
+    <script>
+        // Function to apply white font color to specific symbols
+        function applyWhiteFontToSymbols() {
+            document.body.innerHTML = document.body.innerHTML.replace(/[!()]/g, (match) => {
+                return `<span style="color: white;">${match}</span>`;
+            });
+        }
+
+        // Attach the function to the button click event
+        document.getElementById('fetchdatabtn').onclick = function() {
+            applyWhiteFontToSymbols(); // Call the function when the button is clicked
+        };
+    </script>
+</body>
+</html>
