@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make Exclamation Mark White</title>
+    <script>
+        function changeExclamationMarks() {
+            var elements = document.body.getElementsByTagName('*');
+            for (var i = 0; i < elements.length; i++) {
+                var el = elements[i];
+                if (el.nodeType === 3) { // Check for text nodes
+                    var text = el.nodeValue;
+                    if (text.includes('!')) {
+                        var newText = text.replace(/!/g, '<span style="color: white;">!</span>');
+                        var newNode = document.createElement('span');
+                        newNode.innerHTML = newText;
+                        el.parentNode.replaceChild(newNode, el);
+                    }
+                }
+            }
+        }
+        window.onload = changeExclamationMarks;
+    </script>
+</head>
+<body>
+    <p>This is an example sentence with an exclamation mark!</p>
+    <p>Another example with multiple! exclamation marks!</p>
+</body>
+</html>
