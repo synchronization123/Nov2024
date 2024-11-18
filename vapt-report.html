@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAPT Report Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            margin: 20px;
+        }
+        .pie-chart-container {
+            width: 6cm;
+            height: 6cm;
+            margin: auto;
+        }
+        .severity-table {
+            margin-top: 20px;
+        }
+        .report-container {
+            page-break-inside: avoid;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        @media print {
+            @page {
+                margin: 2cm;
+            }
+            .no-print {
+                display: none;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+        .document-history-table {
+            margin-bottom: 20px;
+        }
+        .document-history-table td, .document-history-table th {
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="text-center mb-4">VAPT Report Generator</h1>
+    <div class="mb-4 no-print">
+        <label for="testIds" class="form-label">Enter Test IDs (comma-separated):</label>
+        <input type="text" id="testIds" class="form-control" placeholder="e.g., 1,2,3">
+        <button id="fetchDataBtn" class="btn btn-primary mt-2">Generate Report</button>
+        <button onclick="window.print()" class="btn btn-success mt-2">Print Preview</button>
+    </div>
+
+    <!-- Document History Table -->
+    <div class="document-history-table">
+        <img src="logo.png" alt="Logo" style="max-width: 200px; margin-bottom: 10px;">
+        <table class="table table-bordered">
+            <tr>
+                <th>Report Title</th>
+                <td><input type="text" id="reportTitle" class="form-control"></td>
+            </tr>
+            <tr>
+                <th>Start Date</th>
+                <td><input type="date" id="startDate" class="form-control"></td>
+            </tr>
+            <tr>
+                <th>End Date</th>
+                <td><input type="date" id="endDate" class="form-control"></td>
+            </tr>
+            <tr>
+                <th>Prepared By</th>
+                <td><input type="text" id="preparedBy" class="form-control"></td>
+            </tr>
+            <tr>
+                <th>Reviewed By</th>
+                <td><input type="text" id="reviewedBy" class="form-control"></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Index Section -->
+    <div id="indexSection" class="mb-4"></div>
+
+    <!-- Pie Chart -->
+    <div class="pie-chart-container">
+        <canvas id="severityPieChart"></canvas>
+    </div>
+
+    <!-- Severity Table -->
+    <div id="severityTable" class="severity-table"></div>
+
+    <!-- Findings Container -->
+    <div id="findingsContainer"></div>
+</div>
+
+<script>
+    const API_KEY = "....";
+    const API_URL = "https://...../api/v2/findings/?test=";
+
+    let indexGenerated = false;
+
+    document.getElementById("fetchDataBtn").addEventListener("click", async () => {
+        const testIdsInput = document.getElementById("testIds").value;
+        const testIds = testIdsInput.split(",").map(id => id.trim());
+
+        if (!indexGenerated) {
+            document.getElementById("indexSection").innerHTML = "<h2>Index</h2><table class='table table-bordered'><thead><tr><th>#</th><th>Finding Title</th><th>Severity</th><th>Vulnerability ID</th></tr></thead><tbody id='indexTableBody'></tbody></table>";
+            indexGenerated = true;
+        }
+
+        const findings = [];
+
+        for (const testId of testIds) {
+            try {
+                const response = await fetch(API_URL + testId, {
+                    headers: { Authorization: `Token ${API_KEY}` }
+                });
+
+                if (!response.ok) {
+                    console.error(`Failed to fetch findings for Test ID: ${testId}`);
+                    continue;
+                }
+
+                const data = await response.json();
+                findings.push(...data.results);
+            } catch (error) {
+                console.error(`Error fetching data for Test ID: ${testId}:`, error);
+            }
+        }
+
+        generateReport(findings);
+    });
+
+    function generateReport(findings) {
+        const severityOrder = ["Critical", "High", "Medium", "Low", "Info"];
+        const severityCounts = { Critical: 0, High: 0, Medium: 0, Low: 0, Info: 0 };
+
+        const sortedFindings = findings.sort((a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity));
+        const findingsContainer = document.getElementById("findingsContainer");
+        const indexTableBody = document.getElementById("indexTableBody");
+
+        findingsContainer.innerHTML = "";
+        indexTableBody.innerHTML = "";
+
+        sortedFindings.forEach((finding, index) => {
+            if (finding.severity in severityCounts) severityCounts[finding.severity]++;
+
+            const findingHtml = `
+                <div class='report-container ${index > 0 ? "page-break" : ""}'>
+                    <br><br>
+                    <h2 id="finding-${index + 1}">${index + 1}. ${finding.title}</h2>
+                    <table class='table table-bordered'>
+                        <tr><th>Vulnerability IDs</th><td>${renderVulnerabilityId(finding.vulnerability_ids)}</td></tr>
+                        <tr><th>CVSSv3</th><td>${renderField(finding.cvssv3)}</td></tr>
+                        <tr><th>CVSSv3 Score</th><td>${renderField(finding.cvssv3_score)}</td></tr>
+                        <tr><th>Severity</th><td>${renderField(finding.severity)}</td></tr>
+                        <tr><th>Description</th><td>${renderParagraph(finding.description)}</td></tr>
+                        <tr><th>Mitigation</th><td>${renderParagraph(finding.mitigation)}</td></tr>
+                        <tr><th>Impact</th><td>${renderParagraph(finding.impact)}</td></tr>
+                        <tr><th>Steps to Reproduce</th><td>${renderParagraph(finding.steps_to_reproduce)}</td></tr>
+                    </table>
+                </div>`;
+
+            findingsContainer.innerHTML += findingHtml;
+
+            const indexRow = `<tr><td><a href="#finding-${index + 1}">${index + 1}</a></td><td>${finding.title}</td><td>${renderField(finding.severity)}</td><td>${renderVulnerabilityId(finding.vulnerability_ids)}</td></tr>`;
+            indexTableBody.innerHTML += indexRow;
+        });
+
+        renderPieChart(severityCounts);
+        renderSeverityTable(severityCounts);
+    }
+
+    function renderField(field) {
+        if (!field) return "N/A";
+        // Check if the field is an image URL
+        if (typeof field === "string" && (field.startsWith("https://demo.defectdojo.org/access_file/") || field.startsWith("https://demo.defectdojo.org/media/uploaded_files/"))) {
+            return `<img src="${field}" alt="Image" style="max-width: 100%; height: auto;">`;
+        }
+        return field;
+    }
+
+    function renderVulnerabilityId(vulnerabilityIds) {
+        if (Array.isArray(vulnerabilityIds)) {
+            return vulnerabilityIds.map(item => item.vulnerability_id).join(", ");
+        }
+        return "N/A";
+    }
+
+    function renderParagraph(text) {
+        if (!text) return "N/A";
+        const paragraphs = text.split("\n").map(paragraph => {
+            // Check if the paragraph contains an image URL
+            if (paragraph.startsWith("https://demo.defectdojo.org/access_file/") || paragraph.startsWith("https://demo.defectdojo.org/media/uploaded_files/")) {
+                return `<img src="${paragraph}" alt="Image" style="max-width: 100%; height: auto;">`;
+            }
+            return `<p>${paragraph.trim()}</p>`;
+        }).join("");
+        return paragraphs || "N/A";
+    }
+
+    function renderPieChart(severityCounts) {
+        const ctx = document.getElementById("severityPieChart").getContext("2d");
+        const filteredCounts = Object.entries(severityCounts).filter(([_, count]) => count > 0);
+        const chartData = {
+            labels: filteredCounts.map(([severity]) => severity),
+            datasets: [{
+                data: filteredCounts.map(([_, count]) => count),
+                backgroundColor: ["#ff0000", "#ff6600", "#ffcc00", "#66cc00", "#00ccff"]
+            }]
+        };
+
+        new Chart(ctx, {
+            type: "pie",
+            data: chartData
+        });
+    }
+
+    function renderSeverityTable(severityCounts) {
+        const tableHtml = `
+            <h3>Severity Counts</h3>
+            <table class='table table-bordered'>
+                <thead>
+                    <tr><th>Severity</th><th>Count</th></tr>
+                </thead>
+                <tbody>
+                    ${Object.entries(severityCounts).map(([severity, count]) => `
+                        <tr>
+                            <td>${severity}</td>
+                            <td>${count}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        `;
+
+        document.getElementById("severityTable").innerHTML = tableHtml;
+    }
+</script>
+
+
+Thank You
+</body>
+</html>
