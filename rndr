@@ -1,0 +1,23 @@
+function getProofOfConceptImages(steps) {
+  const proofLinkPattern = /https?:\/\/[^\s)]+/g;
+  const proofLinks = steps.match(proofLinkPattern);
+
+  // Split the steps into parts (URLs and text)
+  const parts = steps.split(proofLinkPattern);
+
+  let result = "";
+
+  // Iterate through parts and add either text or images
+  parts.forEach((text, index) => {
+    if (text.trim()) {
+      result += `<p>${text.trim()}</p>`; // Add the text as paragraphs
+    }
+    if (proofLinks && proofLinks[index]) {
+      result += `<a href="${proofLinks[index]}" target="_blank">
+                  <img src="${proofLinks[index]}" alt="Proof of concept" class="proof-image">
+                </a>`; // Add the image with a link
+    }
+  });
+
+  return result || "N/A"; // If no content, return "N/A"
+}
