@@ -1,0 +1,36 @@
+function removeMarkdownImages(steps) {
+  // Regular expression to match the markdown image syntax ![](url)
+  const markdownImagePattern = /!.*?(.*?)/g;
+
+  // Replace markdown image syntax with just the image URL
+  return steps.replace(markdownImagePattern, (match, url) => {
+    return `<img src="${url}" alt="Proof of concept" class="proof-image">`;
+  });
+}
+
+function getProofOfConceptImages(steps) {
+  // Remove markdown-style images and render as images directly
+  const cleanedSteps = removeMarkdownImages(steps);
+
+  const proofLinkPattern = /https?:\/\/[^\s)]+/g;
+  const proofLinks = cleanedSteps.match(proofLinkPattern);
+
+  // Split the cleanedSteps into parts (URLs and text)
+  const parts = cleanedSteps.split(proofLinkPattern);
+
+  let result = "";
+
+  // Iterate through parts and add either text or images
+  parts.forEach((text, index) => {
+    if (text.trim()) {
+      result += `<p>${text.trim()}</p>`; // Add the text as paragraphs
+    }
+    if (proofLinks && proofLinks[index]) {
+      result += `<a href="${proofLinks[index]}" target="_blank">
+                  <img src="${proofLinks[index]}" alt="Proof of concept" class="proof-image">
+                </a>`; // Add the image with a link
+    }
+  });
+
+  return result || "N/A"; // If no content, return "N/A"
+}
