@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Data with Styled Exclamation Marks</title>
+    <style>
+        /* Basic styling for the container */
+        #findingscontainer {
+            font-size: 20px;
+            line-height: 1.5;
+        }
+
+        /* Optional: Style the white exclamation marks */
+        .white-exclamation {
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="findingscontainer"></div>
+
+    <script>
+        // Example function to simulate dynamic data loading from an API
+        function loadData() {
+            // Simulating API response
+            const data = 'This is a test! Please check this out! Something important!';
+
+            // Insert the data into the container
+            const container = document.getElementById('findingscontainer');
+            container.innerHTML = data;
+
+            // Call the function to style the exclamation marks
+            styleExclamationMarks();
+        }
+
+        // Function to color the '!' symbol white
+        function styleExclamationMarks() {
+            // Select the container
+            const container = document.getElementById('findingscontainer');
+            
+            // Use a regular expression to find all exclamation marks and wrap them with a span
+            container.innerHTML = container.innerHTML.replace(/!/g, '<span class="white-exclamation">!</span>');
+        }
+
+        // Call the loadData function to simulate loading data
+        loadData();
+    </script>
+</body>
+</html>
