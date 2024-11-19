@@ -1,0 +1,41 @@
+import os
+import pandas as pd
+
+def search_string_in_files(search_string, output_file="search_results.xlsx"):
+    # Initialize list to store search results
+    results = []
+
+    # Get the current directory as root
+    root_directory = os.getcwd()
+    
+    # Walk through the current directory and its subdirectories
+    for dirpath, dirnames, filenames in os.walk(root_directory):
+        for file in filenames:
+            file_path = os.path.join(dirpath, file)
+            try:
+                # Open and read the file
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line_number, line in enumerate(f, start=1):
+                        if search_string in line:
+                            # Append the match to results
+                            results.append({
+                                'Line Number': line_number,
+                                'File Name': file,
+                                'File Path': file_path,
+                                'Line Content': line.strip()
+                            })
+            except Exception as e:
+                print(f"Could not read file {file_path}: {e}")
+
+    # Convert results to a DataFrame
+    df = pd.DataFrame(results)
+
+    # Save results to an Excel file
+    df.to_excel(output_file, index=False, sheet_name='Search Results')
+    print(f"Search complete. Results saved to {output_file}")
+
+# Parameters
+search_string = input("Enter the string to search: ")
+
+# Execute search
+search_string_in_files(search_string)
