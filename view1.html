@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View JSESSIONID</title>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>View JSESSIONID</h1>
+        <table class="table table-bordered mt-3">
+            <thead>
+                <tr>
+                    <th>Row</th>
+                    <th>JSESSIONID</th>
+                </tr>
+            </thead>
+            <tbody id="jsessionid-table">
+                <!-- JSESSIONIDs will be added here dynamically -->
+            </tbody>
+        </table>
+    </div>
+    <script>
+        // Fetch JSESSIONIDs (simulated for demo purposes)
+        fetch('https://qaevents.cevents.com/view.html')
+            .then(response => response.json())
+            .then(data => {
+                const table = document.getElementById('jsessionid-table');
+                data.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${item.jsessionid}</td>
+                    `;
+                    table.appendChild(row);
+                });
+            })
+            .catch(error => console.error('Failed to fetch JSESSIONIDs:', error));
+    </script>
+</body>
+</html>
