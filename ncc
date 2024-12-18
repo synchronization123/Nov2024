@@ -1,0 +1,59 @@
+import os
+import pandas as pd
+import zipfile
+import argparse
+
+def extract_csv_data(folder):
+    """Extract CSV data from zip files in a folder."""
+    data = {}
+    for root, _, files in os.walk(folder):
+        for file in files:
+            if file.endswith('.zip'):
+                with zipfile.ZipFile(os.path.join(root, file), 'r') as z:
+                    for csv_file in z.namelist():
+                        if csv_file.endswith('.csv'):
+                            data[file] = pd.read_csv(z.open(csv_file))
+    return data
+
+def compare_and_store_data(prev_folder, curr_folder, output_folder):
+    """Compare traces from previous and current folders and store results."""
+    os.makedirs(output_folder, exist_ok=True)
+
+    prev_data = extract_csv_data(prev_folder)
+    curr_data = extract_csv_data(curr_folder)
+
+    for zip_name in curr_data:
+        if zip_name in prev_data:
+            # Merge previous and current data, but only keep rows that are in current data
+            merged = pd.merge(
+                curr_data[zip_name], prev_data[zip_name],
+                on='TraceID', how='left', suffixes=('_Previous', '_Current'), indicator=True
+            ).assign(
+                Status=lambda x: x['_merge'].map({'left_only': 'New', 'both': 'Old'}),
+                Comments='', Mentor_Review='', FP_TP_Status=''
+            ).drop(columns=['_merge'])
+
+            # Create 'Severity' column that takes the value from either 'Severity_Previous' or 'Severity_Current'
+            merged['Severity'] = merged['Severity_Previous'].fillna(merged['Severity_Current'])
+
+            # Drop the 'Severity_Previous' and 'Severity_Current' columns after creating 'Severity'
+            merged = merged.drop(columns=['Severity_Previous', 'Severity_Current'])
+
+            # Select only the required columns
+            merged = merged[['TraceID', 'Severity', 'Status', 'Comments', 'Mentor_Review', 'FP_TP_Status']]
+
+            # Save the comparison to the output folder (only current data)
+            merged.to_csv(os.path.join(output_folder, f"{zip_name.replace('.zip', '')}_comparison.csv"), index=False)
+
+def main():
+    current_directory = os.getcwd()  # Get the current working directory
+    
+    prev_folder = os.path.join(current_directory, '12172024')  # Previous folder
+    curr_folder = os.path.join(current_directory, '12182024')  # Current folder
+    output_folder = os.path.join(current_directory, 'viewdata')  # Output folder
+    
+    # Compare and store the data
+    compare_and_store_data(prev_folder, curr_folder, output_folder)
+
+if __name__ == "__main__":
+    main()
