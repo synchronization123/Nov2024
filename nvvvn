@@ -1,0 +1,36 @@
+import os
+import pandas as pd
+
+def append_all_csv_files(output_folder, final_file):
+    """Append data from all CSV files in the output folder into a single final CSV file."""
+    all_data = []  # List to hold data from all CSV files
+
+    for file in os.listdir(output_folder):
+        if file.endswith('_comparison.csv'):  # Filter for relevant files
+            file_path = os.path.join(output_folder, file)
+            df = pd.read_csv(file_path)
+            base_filename = os.path.splitext(file)[0]  # Remove the '.csv' extension
+            df['Source_File'] = base_filename  # Add a new column with the base filename
+            all_data.append(df)
+    
+    # Concatenate all DataFrames into one
+    combined_df = pd.concat(all_data, ignore_index=True)
+
+    # Reorder columns to place 'Source_File' at the beginning
+    columns = ['Source_File'] + [col for col in combined_df.columns if col != 'Source_File']
+    combined_df = combined_df[columns]
+
+    # Write the combined data to final.csv in the current directory
+    combined_df.to_csv(final_file, index=False)
+
+def main():
+    current_directory = os.getcwd()  # Get the current working directory
+    
+    output_folder = os.path.join(current_directory, 'viewdata')  # Output folder with CSV files
+    final_file = os.path.join(current_directory, 'final.csv')  # Final CSV file to store combined data
+    
+    # Append all CSV data into final.csv
+    append_all_csv_files(output_folder, final_file)
+
+if __name__ == "__main__":
+    main()
