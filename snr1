@@ -1,0 +1,109 @@
+import requests
+import base64
+import os
+from openpyxl import Workbook, load_workbook
+
+# Constants
+SONARQUBE_URL = "https://sonar.crm.com/api/issues/search"
+SONARQUBE_TOKEN = "hdjdjdhdjkdkrjfjtjf"
+INPUT_FILE = "projects.xlsx"
+OUTPUT_FILE = "output.xlsx"
+
+def read_projects_from_excel(file_path):
+    """Read the project list from an Excel file."""
+    try:
+        workbook = load_workbook(file_path)
+        sheet = workbook.active
+        projects = [row[0].value for row in sheet.iter_rows(min_row=2, max_col=1) if row[0].value]
+        return projects
+    except Exception as e:
+        print(f"Error reading input file: {e}")
+        return []
+
+def fetch_data_from_sonarqube(project_key):
+    """Fetch data from SonarQube for a specific project."""
+    token = f"{SONARQUBE_TOKEN}:".encode("utf-8")
+    auth_header = base64.b64encode(token).decode("utf-8")
+    
+    headers = {"Authorization": f"Basic {auth_header}"}
+    params = {
+        "componentKeys": project_key,
+        "types": "VULNERABILITY",
+        "resolved": "false",
+        "additionalFields": "comments"
+    }
+
+    response = requests.get(SONARQUBE_URL, headers=headers, params=params)
+    response.raise_for_status()  # Raise error for non-200 responses
+    return response.json()
+
+def process_issues(issues):
+    """Process issues and extract required fields."""
+    results = []
+    for issue in issues:
+        project = issue.get("project", "")
+        issue_key = issue.get("key", "")
+        comments = issue.get("comments", [])
+        
+        # Extract comments if available
+        for comment in comments:
+            login = comment.get("login", "N/A")
+            html_text = comment.get("htmlText", "N/A")
+            results.append({
+                "project": project,
+                "key": issue_key,
+                "login": login,
+                "htmlText": html_text
+            })
+        
+        # If no comments, add issue without comments
+        if not comments:
+            results.append({
+                "project": project,
+                "key": issue_key,
+                "login": "N/A",
+                "htmlText": "N/A"
+            })
+    
+    return results
+
+def write_data_to_excel(output_file, data):
+    """Write fetched data to an Excel file."""
+    wb = Workbook()
+    sheet = wb.active
+    sheet.title = "SonarQube Data"
+    sheet.append(["Project", "Key", "Login", "HTML Text"])  # Header row
+
+    for record in data:
+        sheet.append([record["project"], record["key"], record["login"], record["htmlText"]])
+
+    wb.save(output_file)
+
+def main():
+    if not os.path.exists(INPUT_FILE):
+        print(f"Input file '{INPUT_FILE}' not found.")
+        return
+
+    projects = read_projects_from_excel(INPUT_FILE)
+    if not projects:
+        print("No projects found in the input file.")
+        return
+
+    results = []
+    for project in projects:
+        print(f"Fetching data for project: {project}")
+        try:
+            json_data = fetch_data_from_sonarqube(project)
+            issues = json_data.get("issues", [])
+            results.extend(process_issues(issues))
+        except Exception as e:
+            print(f"Error fetching data for project '{project}': {e}")
+
+    if results:
+        write_data_to_excel(OUTPUT_FILE, results)
+        print(f"Data successfully written to '{OUTPUT_FILE}'.")
+    else:
+        print("No data fetched from SonarQube.")
+
+if __name__ == "__main__":
+    main()
