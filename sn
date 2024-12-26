@@ -1,0 +1,73 @@
+import requests
+import openpyxl
+from openpyxl import Workbook
+import os
+
+# Define constants
+SONARQUBE_URL = "https://sonar.crm.com/api/issues/search"
+SONARQUBE_TOKEN = "hdjdjdhdjkdkrjfjtjf"
+INPUT_FILE = "projects.xlsx"
+OUTPUT_FILE = "output.xlsx"
+
+def fetch_data_from_sonarqube(project_key):
+    """Fetch data from SonarQube for a specific project."""
+    headers = {"Authorization": f"Basic {SONARQUBE_TOKEN.encode('utf-8').hex()}"}
+    params = {
+        "componentKeys": project_key,
+        "types": "VULNERABILITY",
+        "resolved": "false"
+    }
+    
+    response = requests.get(SONARQUBE_URL, headers=headers, params=params)
+    response.raise_for_status()  # Raise error for non-200 responses
+    return response.json()
+
+def read_projects_from_excel(input_file):
+    """Read project keys from the Excel file."""
+    wb = openpyxl.load_workbook(input_file)
+    sheet = wb.active
+    projects = [row[0].value for row in sheet.iter_rows(min_row=2, max_col=1) if row[0].value]
+    return projects
+
+def write_data_to_excel(output_file, data):
+    """Write fetched data to an Excel file."""
+    wb = Workbook()
+    sheet = wb.active
+    sheet.title = "SonarQube Data"
+    sheet.append(["Project", "Key"])  # Header row
+
+    for record in data:
+        sheet.append([record["project"], record["key"]])
+
+    wb.save(output_file)
+
+def main():
+    # Check if input file exists
+    if not os.path.exists(INPUT_FILE):
+        print(f"Input file '{INPUT_FILE}' not found.")
+        return
+
+    projects = read_projects_from_excel(INPUT_FILE)
+    if not projects:
+        print("No projects found in the input file.")
+        return
+
+    results = []
+    for project in projects:
+        print(f"Fetching data for project: {project}")
+        try:
+            json_data = fetch_data_from_sonarqube(project)
+            issues = json_data.get("issues", [])
+            for issue in issues:
+                results.append({"project": project, "key": issue["key"]})
+        except Exception as e:
+            print(f"Error fetching data for project '{project}': {e}")
+
+    if results:
+        write_data_to_excel(OUTPUT_FILE, results)
+        print(f"Data successfully written to '{OUTPUT_FILE}'.")
+    else:
+        print("No data fetched from SonarQube.")
+
+if __name__ == "__main__":
+    main()
