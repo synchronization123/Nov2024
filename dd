@@ -1,0 +1,57 @@
+import requests
+from bs4 import BeautifulSoup
+import openpyxl
+from requests.auth import HTTPBasicAuth
+
+# Load URLs from Excel
+input_file = "projects.xlsx"
+output_file = "output.xlsx"
+
+# Replace with your username and password
+username = "your_username"
+password = "your_password"
+
+def fetch_and_count(url):
+    """Fetch the webpage and count '-' under the specific <th>."""
+    try:
+        # Use HTTPBasicAuth to pass the username and password
+        response = requests.get(url, auth=HTTPBasicAuth(username, password))
+        response.raise_for_status()  # Check if request is successful
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        # Locate the <th> with specific attributes
+        th_element = soup.find("th", class_="detail", attrs={"data-field": "analysis.state"})
+        if not th_element:
+            return 0  # Return 0 if the <th> element isn't found
+        
+        # Find the corresponding <td> elements
+        table = th_element.find_parent("table")
+        if not table:
+            return 0
+        
+        td_elements = table.find_all("td")
+        count = sum(1 for td in td_elements if td.text.strip() == "-")
+        return count
+    except Exception as e:
+        print(f"Error processing URL {url}: {e}")
+        return 0
+
+# Read URLs from the Excel file
+wb = openpyxl.load_workbook(input_file)
+sheet = wb.active
+urls = [cell.value for cell in sheet["A"] if cell.value]
+
+# Prepare the output workbook
+output_wb = openpyxl.Workbook()
+output_sheet = output_wb.active
+output_sheet.append(["URL", "Count"])
+
+# Process each URL and write results to the output Excel
+for url in urls:
+    print(f"Processing URL: {url}")
+    count = fetch_and_count(url)
+    output_sheet.append([url, count])
+
+# Save the output file
+output_wb.save(output_file)
+print(f"Results saved in {output_file}")
