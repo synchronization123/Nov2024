@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Version Concat Script</title>
+    <style>
+        /* Simple inline CSS for styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 10px;
+            text-align: left;
+        }
+        caption {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Version Concat Script</h2>
+    <label for="versionInput">Enter Version:</label>
+    <input type="text" id="versionInput" placeholder="Enter version (e.g., v1.0)">
+    <button id="startButton">Start</button>
+
+    <table>
+        <caption>Version</caption>
+        <thead>
+            <tr>
+                <th>JQL Query</th>
+            </tr>
+        </thead>
+        <tbody id="resultTableBody">
+            <!-- Results will appear here -->
+        </tbody>
+    </table>
+
+    <script>
+        // Predefined sentence templates
+        const predefinedSentences = [
+            "(labels in ({version}) OR \"Build(s)\" in ({version}))",
+            "SELECT * FROM builds WHERE version = '{version}'",
+            "The version '{version}' is currently active."
+        ];
+
+        // Event listener for the start button
+        document.getElementById('startButton').onclick = function() {
+            const version = document.getElementById('versionInput').value.trim(); // Get user input
+            const resultTableBody = document.getElementById('resultTableBody');
+
+            if (version === "") {
+                alert("Please enter a version!");
+                return;
+            }
+
+            // Clear previous results
+            resultTableBody.innerHTML = "";
+
+            // Generate sentences and add to the table
+            predefinedSentences.forEach(sentence => {
+                const filledSentence = sentence.replace(/{version}/g, version);
+                const tableRow = `<tr><td>${filledSentence}</td></tr>`;
+                resultTableBody.innerHTML += tableRow; // Append to the table body
+            });
+        };
+    </script>
+</body>
+</html>
