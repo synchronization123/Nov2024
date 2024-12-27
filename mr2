@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Version Summary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 10px;
+            text-align: left;
+            word-wrap: break-word;
+            white-space: normal; /* Ensures content wraps inside cells */
+        }
+        table[border="0"] td, table[border="0"] th {
+            border: none;
+        }
+        caption {
+            font-weight: bold;
+            text-align: left;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+        }
+        .bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h2>Version Summary</h2>
+    <label for="versionInput">Enter Version:</label>
+    <input type="text" id="versionInput" placeholder="Enter version (e.g., v1.0)">
+    <button id="generateButton">Generate Tables</button>
+    <button id="copyButton">Copy Tables</button>
+
+    <div id="tablesContainer"></div>
+
+    <script>
+        document.getElementById('generateButton').onclick = function() {
+            const version = document.getElementById('versionInput').value.trim();
+            const tablesContainer = document.getElementById('tablesContainer');
+
+            if (version === "") {
+                alert("Please enter a version!");
+                return;
+            }
+
+            // Clear existing tables
+            tablesContainer.innerHTML = "";
+
+            // Create the first table
+            const table1 = `
+                <table border="1">
+                    <caption>Version Summary</caption>
+                    <tr>
+                        <td>Version Details</td>
+                        <td>:</td>
+                        <td class="bold">${version}</td>
+                    </tr>
+                    <tr>
+                        <td>JQL (Appsec jira)</td>
+                        <td>:</td>
+                        <td>(labels in (${version}) OR "Build(s)" in (${version}))</td>
+                    </tr>
+                    <tr>
+                        <td>Comments</td>
+                        <td>:</td>
+                        <td>&nbsp;&nbsp; Security jira found</td>
+                    </tr>
+                </table>
+            `;
+
+            // Create the second table
+            const table2 = `
+                <table border="0">
+                    <tr class="bold">
+                        <td>Epic, Story:</td>
+                        <td>&nbsp;&nbsp; jira found</td>
+                    </tr>
+                    <tr>
+                        <td>JQL</td>
+                        <td>(labels in (${version}) OR Build(s) in (${version}))</td>
+                    </tr>
+                </table>
+            `;
+
+            // Append the tables to the container
+            tablesContainer.innerHTML += table1;
+            tablesContainer.innerHTML += table2;
+        };
+
+        document.getElementById('copyButton').onclick = function() {
+            const tablesContainer = document.getElementById('tablesContainer');
+
+            if (tablesContainer.innerHTML.trim() === "") {
+                alert("No tables to copy! Please generate the tables first.");
+                return;
+            }
+
+            // Use Clipboard API to copy the visual content
+            const range = document.createRange();
+            range.selectNode(tablesContainer);
+
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            try {
+                document.execCommand('copy');
+                alert("Tables copied to clipboard!");
+            } catch (err) {
+                alert("Failed to copy tables. Please try again.");
+            }
+
+            // Clear the selection
+            selection.removeAllRanges();
+        };
+    </script>
+</body>
+</html>
