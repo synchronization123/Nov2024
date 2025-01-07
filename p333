@@ -1,0 +1,51 @@
+import pandas as pd
+
+# Load the input file with data
+input_file = "input.xlsx"  # Replace with your input data file name
+data = pd.read_excel(input_file)
+
+# Load the Excel file containing the list of usernames
+usernames_file = "usernames.xlsx"  # Replace with your usernames file name
+usernames_data = pd.read_excel(usernames_file)
+
+# Load the Excel file containing the list of versions
+versions_file = "versions.xlsx"  # Replace with your versions file name
+versions_data = pd.read_excel(versions_file)
+
+# Extract the list of usernames
+usernames_column = "Usernames"  # Replace with the actual column name for usernames
+usernames = usernames_data[usernames_column].dropna().unique()
+
+# Extract the list of versions
+versions_column = "Versions"  # Replace with the actual column name for versions
+versions = versions_data[versions_column].dropna().unique()
+
+# Define the JIRA ID column
+jira_column = "JIRA_ID"  # Replace with the actual JIRA ID column name
+
+# Initialize a list for filtered data
+filtered_data = []
+
+# Iterate over each row in the input data
+for index, row in data.iterrows():
+    jira_id = row[jira_column]  # Get the JIRA_ID for the current row
+    for column in data.columns:
+        if column == jira_column:
+            continue  # Skip the JIRA_ID column itself
+        cell_value = str(row[column])
+        # Check if any username or version is a substring in the cell
+        if any(username in cell_value for username in usernames) and any(version in cell_value for version in versions):
+            filtered_data.append({
+                "JIRA_ID": jira_id,    # Copy the JIRA_ID
+                "Column": column,      # Name of the column where the match was found
+                "Value": cell_value    # Value of the matched cell
+            })
+
+# Convert the filtered data to a DataFrame
+filtered_df = pd.DataFrame(filtered_data)
+
+# Save the filtered data to a new Excel file
+output_file = "filtered_output.xlsx"
+filtered_df.to_excel(output_file, index=False)
+
+print(f"Filtered data saved to {output_file}")
