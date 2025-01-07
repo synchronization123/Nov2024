@@ -1,0 +1,45 @@
+import pandas as pd
+
+# Load the input file with data
+input_file = "input.xlsx"  # Replace with your input data file name
+data = pd.read_excel(input_file)
+
+# Load the Excel file containing the list of usernames
+usernames_file = "usernames.xlsx"  # Replace with your usernames file name
+usernames_data = pd.read_excel(usernames_file)
+
+# Extract the list of usernames
+usernames_column = "Usernames"  # Replace with the actual column name for usernames
+usernames = usernames_data[usernames_column].dropna().unique()
+
+# Define the JIRA ID column (or any specific column you want to check)
+jira_column = "JIRA_ID"  # Replace with the actual JIRA ID column name
+
+# Initialize a list for filtered rows
+filtered_data = []
+
+# Iterate over the rows of the input data
+for index, row in data.iterrows():
+    row_copied = False
+
+    # Check if a username (as a substring) exists in any cell of the row
+    for cell in row:
+        if any(username in str(cell) for username in usernames):
+            filtered_data.append(row)
+            row_copied = True
+            break
+
+    # Additionally, check the JIRA_ID column for usernames as substrings
+    if not row_copied:
+        jira_id = str(row[jira_column])
+        if any(username in jira_id for username in usernames):
+            filtered_data.append(row)
+
+# Convert the filtered rows back to a DataFrame
+filtered_df = pd.DataFrame(filtered_data, columns=data.columns)
+
+# Save the filtered data to a new Excel file
+output_file = "filtered_output.xlsx"
+filtered_df.to_excel(output_file, index=False)
+
+print(f"Filtered data saved to {output_file}")
