@@ -1,0 +1,46 @@
+import pandas as pd
+import requests
+
+# Input and output file paths
+input_file = "input_keywords.xlsx"
+output_file = "output_results.xlsx"
+
+# Jira URL and headers
+jira_url = "https://jira.crm.com/rest/api/2/search?jql="
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer hjdjdjdjdjdjdjdbdhd"
+}
+
+# Read keywords from input Excel
+keywords_df = pd.read_excel(input_file)
+keywords = keywords_df['Keywords'].tolist()
+
+# Prepare output data
+results = []
+
+# Query Jira for each keyword
+for keyword in keywords:
+    jql_query = f'text~"{keyword}"'
+    url = jira_url + jql_query
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        issues = response.json().get('issues', [])
+        
+        # Extract issue key and status for each issue
+        for issue in issues:
+            issue_key = issue.get('key')
+            status = issue.get('fields', {}).get('status', {}).get('name', 'Unknown')
+            results.append({"Keyword": keyword, "IssueKey": issue_key, "Status": status})
+    except requests.exceptions.RequestException as e:
+        print(f"Error querying Jira for keyword '{keyword}': {e}")
+        results.append({"Keyword": keyword, "IssueKey": "Error", "Status": "Error"})
+
+# Create a DataFrame from results
+output_df = pd.DataFrame(results)
+
+# Save results to an Excel file
+output_df.to_excel(output_file, index=False)
+
+print(f"Results saved to {output_file}")
