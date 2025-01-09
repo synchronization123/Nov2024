@@ -1,0 +1,40 @@
+import requests
+import openpyxl
+
+# Defining the API endpoint and token
+url = "https://dojo.crm.com/api/v2/users/?is_active=true&limit=100&offset=0"
+token = "jdjdjdkdjjd"
+headers = {
+    'Authorization': f'Token {token}',
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+}
+
+# Send GET request to the API
+response = requests.get(url, headers=headers)
+
+# Check if the response is successful
+if response.status_code == 200:
+    data = response.json()
+    users = data.get('results', [])
+    
+    # Create a new Excel workbook
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    sheet.title = "Usernames"
+
+    # Add headers to the Excel file
+    sheet.append(["Username"])
+
+    # Loop through users and write cleaned usernames to Excel
+    for user in users:
+        email = user.get('email', '')
+        username = email.split('@')[0]  # Remove domain part of the email
+        sheet.append([username])
+
+    # Save the Excel file
+    wb.save("usernames.xlsx")
+    print("Usernames have been saved to usernames.xlsx")
+
+else:
+    print(f"Error fetching data from DefectDojo API. Status code: {response.status_code}")
