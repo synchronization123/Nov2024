@@ -1,0 +1,63 @@
+import pandas as pd
+from openpyxl import Workbook
+
+# Load Keywords.xlsx and Jira Data CSV
+keywords_df = pd.read_excel('Keywords.xlsx')  # List of keywords
+jira_data_df = pd.read_csv('jiradata.csv')    # JIRA Data
+
+# Create a new Excel workbook for final output
+wb = Workbook()
+ws = wb.active
+ws.title = "Final Output"
+
+# Write header row
+header = ["Keyword", "Summary", "Issue Key", "Issue Type", "Status", "Builds", "Components", "QVV", "Comment"]
+ws.append(header)
+
+# Function to filter data by keyword and process it
+def get_filtered_data(keyword):
+    # Check if the keyword exists anywhere in the row (across all columns) - case insensitive
+    mask = jira_data_df.apply(lambda row: row.astype(str).str.contains(keyword, case=False, na=False).any(), axis=1)
+    filtered_data = jira_data_df[mask]
+    
+    # Initialize empty lists to store concatenated field values
+    builds = ', '.join(filtered_data['Custom field (Build(s))'].dropna().unique())
+    components = ', '.join(filtered_data['Component/s'].dropna().unique())
+    qvv = ', '.join(filtered_data['Custom field (QA Verified Version)'].dropna().unique())
+    
+    # Initialize a dictionary to collect comments for the same issue key
+    comment_dict = {}
+    
+    # Iterate through filtered data to collect comments for each issue key
+    for _, row in filtered_data.iterrows():
+        issue_key = row['Issue key']
+        comment = row['Comment'] if pd.notna(row['Comment']) else ""
+        
+        # If the keyword is found in the comment, add it to the respective issue_key's comment list
+        if keyword.lower() in str(comment).lower():
+            if issue_key not in comment_dict:
+                comment_dict[issue_key] = []
+            comment_dict[issue_key].append(comment)
+    
+    # Create a DataFrame from the comment_dict
+    expanded_data = []
+    for issue_key, comments in comment_dict.items():
+        for comment_idx, comment in enumerate(comments):
+            expanded_data.append({
+                'Issue key': issue_key,
+                'Comment': f"Comment {comment_idx + 1}: {comment}"  # Add Comment 1, Comment 2, etc.
+            })
+    
+    return expanded_data, builds, components, qvv
+
+# Loop through each keyword and process
+for keyword in keywords_df['Keyword']:
+    result_data, builds, components, qvv = get_filtered_data(keyword)
+    
+    for row in result_data:
+        ws.append([keyword, "", row['Issue key'], "", "", builds, components, qvv, row['Comment']])
+
+# Save the final output to an Excel file
+wb.save('finaloutput.xlsx')
+
+print("Script executed successfully, finaloutput.xlsx created.")
