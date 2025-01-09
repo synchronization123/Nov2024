@@ -1,0 +1,55 @@
+import pandas as pd
+
+def process_excel():
+    # Hardcoded file names
+    input_file = "Filtereddata.xlsx"
+    jira_file = "jiraoutput.xlsx"
+    output_file = "version.xlsx"
+
+    # Load the input and Jira Excel files
+    filtered_data = pd.read_excel(input_file)
+    jira_data = pd.read_excel(jira_file)
+
+    # Ensure both DataFrames have an "Issue Key" column for the join
+    if "Issue Key" not in filtered_data.columns:
+        raise ValueError("Filtereddata.xlsx must have an 'Issue Key' column.")
+    if "Issue Key" not in jira_data.columns:
+        raise ValueError("jiraoutput.xlsx must have an 'Issue Key' column.")
+
+    # Columns to process from Jira data
+    columns_to_concatenate = {
+        "Issue Type": None,
+        "Status": None,
+        "Summary": None,
+        "Custom field (Build(s))": None,
+        "Custom field (QA Verified Version)": None
+    }
+
+    # Identify additional ".1", ".2", ..., ".100" variations
+    for column in jira_data.columns:
+        for base_column in columns_to_concatenate.keys():
+            if column.startswith(base_column):
+                if columns_to_concatenate[base_column] is None:
+                    columns_to_concatenate[base_column] = []
+                columns_to_concatenate[base_column].append(column)
+
+    # Create concatenated columns in Jira data
+    concatenated_data = pd.DataFrame()
+    for base_column, sub_columns in columns_to_concatenate.items():
+        if sub_columns:
+            concatenated_data[base_column] = jira_data[sub_columns].apply(
+                lambda x: ', '.join(x.dropna().astype(str)), axis=1
+            )
+
+    # Add the Issue Key back to concatenated_data for merging
+    concatenated_data["Issue Key"] = jira_data["Issue Key"]
+
+    # Perform a VLOOKUP-like merge on the "Issue Key" column
+    merged_data = pd.merge(filtered_data, concatenated_data, on="Issue Key", how="left")
+
+    # Save the output to an Excel file
+    merged_data.to_excel(output_file, index=False)
+    print(f"Data has been successfully saved to {output_file}")
+
+# Run the function
+process_excel()
