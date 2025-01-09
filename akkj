@@ -1,0 +1,51 @@
+import pandas as pd
+
+def process_excel():
+    # Hardcoded file names
+    input_file = "Filtereddata.xlsx"
+    jira_file = "jiraoutput.xlsx"
+    output_file = "version.xlsx"
+
+    # Load the filtered data Excel file
+    filtered_data = pd.read_excel(input_file)
+    
+    # Filter rows in Column B containing "Comment" or its variations
+    filtered_data = filtered_data[filtered_data['B'].str.contains(r'Comment(\.\d+)?', na=False, case=False)]
+    
+    # Load the Jira output Excel file
+    jira_data = pd.read_excel(jira_file)
+    
+    # Columns to process from Jira file
+    columns_to_concatenate = {
+        "Issue Type": None,
+        "Status": None,
+        "Summary": None,
+        "Custom field (Build(s))": None,
+        "Custom field (QA Verified Version)": None
+    }
+    
+    # Identify additional ".1", ".2", etc., variations
+    for column in jira_data.columns:
+        for base_column in columns_to_concatenate.keys():
+            if column.startswith(base_column):
+                if columns_to_concatenate[base_column] is None:
+                    columns_to_concatenate[base_column] = []
+                columns_to_concatenate[base_column].append(column)
+    
+    # Concatenate columns into single cells
+    concatenated_data = pd.DataFrame()
+    for base_column, sub_columns in columns_to_concatenate.items():
+        if sub_columns:
+            concatenated_data[base_column] = jira_data[sub_columns].apply(
+                lambda x: ', '.join(x.dropna().astype(str)), axis=1
+            )
+    
+    # Combine filtered and concatenated data
+    output_data = pd.concat([filtered_data.reset_index(drop=True), concatenated_data], axis=1)
+    
+    # Save to output file
+    output_data.to_excel(output_file, index=False)
+    print(f"Data has been successfully saved to {output_file}")
+
+# Run the function
+process_excel()
