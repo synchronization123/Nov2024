@@ -1,0 +1,84 @@
+import requests
+import pandas as pd
+
+# Jira API URL
+jira_url = "https://jira.ghkk.com/rest/api/2/search?jql="
+
+# Prompt the user for versions
+versions = input("Enter versions (comma-separated): ").split(',')
+
+# Create the JQL query string based on versions input
+jql = f'labels in ({",".join(versions)}) OR "Build(s)" in ({",".join(versions)})'
+
+# Set up Jira API request
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer hjdjdjdjdjd'  # Use only the API token here as the bearer token
+}
+
+# To hold all the issues across multiple pages
+all_issues = []
+
+# Make the request to Jira API with API token for authentication, and handle pagination
+start_at = 0
+max_results = 100  # Fetch 100 results per request (maximum)
+while True:
+    # Construct the API URL with pagination
+    url = f"{jira_url}{jql}&startAt={start_at}&maxResults={max_results}"
+    
+    # Send request
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        data = response.json()
+        all_issues.extend(data['issues'])  # Append issues to the list
+
+        # If there are no more issues to fetch, stop
+        if len(data['issues']) < max_results:
+            break
+
+        # Move to the next page
+        start_at += max_results
+    else:
+        print(f"Failed to fetch data from Jira. Status code: {response.status_code}")
+        break
+
+# Initialize a list to store the rows of the Excel sheet
+rows = []
+
+# Iterate through the issues and collect relevant data
+for issue in all_issues:
+    issue_key = issue['key']
+    issue_type = issue['fields']['issuetype']['name']
+    
+    # Check if the issue is related to security
+    labels = issue['fields'].get('labels', [])
+    issue_labels = ', '.join(labels)  # Join all labels as a comma-separated list
+    
+    if 'Security' in labels or 'AppSecurity' in labels:
+        issue_category = 'Security Jira'
+    else:
+        issue_category = 'Non-Security Jira'
+    
+    # Check the custom field for QA Verified Version (cf[13701])
+    qa_verified_versions = issue['fields'].get('cf[13701]', [])
+    qa_verified_version = ', '.join(qa_verified_versions) if qa_verified_versions else 'Not Found'
+    
+    # Extract all comments
+    comments = issue['fields'].get('comment', {}).get('comments', [])
+    comment_texts = [comment['body'] for comment in comments]
+    all_comments = '\n'.join(comment_texts)  # Join all comments with a line break
+    
+    # Combine the row data with the comments
+    row = [issue_key, issue_type, issue_category, issue_labels, qa_verified_version, all_comments]
+    rows.append(row)
+
+# Define the column names
+columns = ['Issuekey', 'Issuetype', 'Issue Category', 'Labels', 'QA Verified Version', 'Comments']
+
+# Create a pandas DataFrame from the rows
+df = pd.DataFrame(rows, columns=columns)
+
+# Save the DataFrame to an Excel file
+df.to_excel('jiradata_with_all_labels_comments.xlsx', index=False)
+print("Data saved to jiradata_with_all_labels_comments.xlsx.")
