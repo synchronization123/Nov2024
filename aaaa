@@ -1,0 +1,89 @@
+import requests
+import pandas as pd
+
+def get_jira_data(jira_url, jira_headers, jql):
+    """Fetch data from JIRA API."""
+    response = requests.get(jira_url + jql, headers=jira_headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to fetch JIRA data. Status Code: {response.status_code}, Response: {response.text}")
+
+def save_to_excel(data, filename):
+    """Save data to Excel."""
+    df = pd.DataFrame(data)
+    df.to_excel(filename, index=False)
+    print(f"Data saved to {filename}")
+
+def filter_data_by_keyword(jira_file, keyword, filtered_file):
+    """Filter data in Excel by keyword."""
+    df = pd.read_excel(jira_file)
+    filtered_rows = []
+
+    for index, row in df.iterrows():
+        for col in df.columns:
+            if keyword.lower() in str(row[col]).lower():
+                filtered_rows.append({
+                    "Issue Key": row.get("key", "Unknown"),
+                    "Keyword": keyword,
+                    "Cell Data": row[col]
+                })
+
+    if filtered_rows:
+        filtered_df = pd.DataFrame(filtered_rows)
+        filtered_df.to_excel(filtered_file, index=False)
+        print(f"Filtered data saved to {filtered_file}")
+    else:
+        print("No data found for the given keyword.")
+
+def get_active_users(dojo_url, dojo_headers, params):
+    """Fetch active users from Dojo API."""
+    response = requests.get(dojo_url, headers=dojo_headers, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to fetch active users. Status Code: {response.status_code}, Response: {response.text}")
+
+def main():
+    # User inputs
+    versions = input("Enter versions (comma separated): ").split(",")
+    keyword = input("Enter keyword to filter data: ").strip()
+
+    # JIRA API details
+    jira_url = "https://jira.xrm.com/rest/api/2/search?jql="
+    jira_headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer hfjdjfjfjfjfjfjjf"
+    }
+    jql = f'(Labels in({",".join(versions)}) OR "Build(s)" in ({",".join(versions)}))'
+
+    # File names
+    jira_file = "jiradata.xlsx"
+    filtered_file = "filtereddata.xlsx"
+
+    # Fetch JIRA data
+    print("Fetching JIRA data...")
+    jira_data = get_jira_data(jira_url, jira_headers, jql)
+    issues = jira_data.get("issues", [])
+    save_to_excel(issues, jira_file)
+
+    # Filter data by keyword
+    print("Filtering data by keyword...")
+    filter_data_by_keyword(jira_file, keyword, filtered_file)
+
+    # Dojo API details
+    dojo_url = "https://dojo.defect.com/api/v2/users/?is_active=true"
+    dojo_headers = {
+        "Authorization": f"Token {input('Enter Dojo API Token: ')}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    dojo_params = {"limit": 500, "offset": 0}
+
+    # Fetch active users from Dojo API
+    print("Fetching active users from Dojo API...")
+    active_users = get_active_users(dojo_url, dojo_headers, dojo_params)
+    print(f"Active users fetched: {len(active_users.get('results', []))}")
+
+if __name__ == "__main__":
+    main()
