@@ -1,0 +1,49 @@
+import pandas as pd
+from openpyxl import Workbook
+
+# Load Keywords.xlsx and Jira Data CSV
+keywords_df = pd.read_excel('Keywords.xlsx')  # List of keywords
+jira_data_df = pd.read_csv('jiradata.csv')    # JIRA Data
+
+# Create a new Excel workbook for final output
+wb = Workbook()
+ws = wb.active
+ws.title = "Final Output"
+
+# Write header row
+header = ["Keyword", "Summary", "Issue Key", "Issue Type", "Status", "Builds", "Components", "QVV", "Comment"]
+ws.append(header)
+
+# Function to filter data by keyword and process it
+def get_filtered_data(keyword):
+    # Check if the keyword exists anywhere in the row (across all columns)
+    mask = jira_data_df.apply(lambda row: row.astype(str).str.contains(keyword, case=False, na=False).any(), axis=1)
+    filtered_data = jira_data_df[mask]
+    
+    # Initialize empty lists to store concatenated field values
+    builds = ', '.join(filtered_data['Custom field (Build(s))'].dropna().unique())
+    components = ', '.join(filtered_data['Component/s'].dropna().unique())
+    qvv = ', '.join(filtered_data['Custom field (QA Verified Version)'].dropna().unique())
+    
+    # Add filtered data to the result, and include only the comment if the keyword is found in the comment column
+    filtered_data['Comment'] = filtered_data['Comment'].apply(lambda x: x if pd.notna(x) and keyword.lower() in str(x).lower() else None)
+    
+    return filtered_data[['Summary', 'Issue key', 'Issue Type', 'Status', 'Comment']].assign(
+        Builds=builds,
+        Components=components,
+        QVV=qvv
+    )
+
+# Loop through each keyword and process
+for keyword in keywords_df['Keyword']:
+    result = get_filtered_data(keyword)
+    
+    for _, row in result.iterrows():
+        # Ensure the comment is not None
+        comment = row['Comment'] if pd.notna(row['Comment']) else ""
+        ws.append([keyword, row['Summary'], row['Issue key'], row['Issue Type'], row['Status'], row['Builds'], row['Components'], row['QVV'], comment])
+
+# Save the final output to an Excel file
+wb.save('finaloutput.xlsx')
+
+print("Script executed successfully, finaloutput.xlsx created.")
