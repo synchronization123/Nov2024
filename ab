@@ -1,0 +1,102 @@
+import requests
+import pandas as pd
+
+def get_jira_data(jira_url, jira_headers, jql):
+    """Fetch data from JIRA API."""
+    response = requests.get(jira_url + jql, headers=jira_headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to fetch JIRA data. Status Code: {response.status_code}, Response: {response.text}")
+
+def save_to_excel(data, filename):
+    """Save data to Excel."""
+    df = pd.DataFrame(data)
+    df.to_excel(filename, index=False)
+    print(f"Data saved to {filename}")
+
+def filter_data_by_usernames(jira_file, usernames, filtered_file):
+    """Filter data in Excel by username."""
+    df = pd.read_excel(jira_file)
+    filtered_rows = []
+
+    for index, row in df.iterrows():
+        issue_key = row.get("key", "Unknown")
+        comments = row.get("comments", [])
+        for comment in comments:
+            if comment.get("author", {}).get("name") in usernames:
+                filtered_rows.append({
+                    "Issue Key": issue_key,
+                    "Username": comment.get("author", {}).get("name", "Unknown"),
+                    "Comment": comment.get("body", "No comment")
+                })
+
+    if filtered_rows:
+        filtered_df = pd.DataFrame(filtered_rows)
+        filtered_df.to_excel(filtered_file, index=False)
+        print(f"Filtered data saved to {filtered_file}")
+    else:
+        print("No data found for the given usernames.")
+
+def get_active_users(dojo_url, dojo_headers, params):
+    """Fetch active users from Dojo API."""
+    response = requests.get(dojo_url, headers=dojo_headers, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to fetch active users. Status Code: {response.status_code}, Response: {response.text}")
+
+def main():
+    # User inputs
+    versions = input("Enter versions (comma separated): ").split(",")
+    keyword = input("Enter keyword to filter data: ").strip()
+
+    # JIRA API details
+    jira_url = "https://jira.xrm.com/rest/api/2/search?jql="
+    jira_headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer hfjdjfjfjfjfjfjjf"
+    }
+    jql = f'(Labels in({",".join(versions)}) OR "Build(s)" in ({",".join(versions)}))'
+
+    # File names
+    jira_file = "jiradata.xlsx"
+    filtered_file = "filtereddata.xlsx"
+
+    # Fetch JIRA data
+    print("Fetching JIRA data...")
+    jira_data = get_jira_data(jira_url, jira_headers, jql)
+    issues = jira_data.get("issues", [])
+    
+    # Fetch comments for each issue
+    for issue in issues:
+        issue_key = issue.get("key")
+        comments_url = f"https://jira.xrm.com/rest/api/2/issue/{issue_key}/comment"
+        comments_response = requests.get(comments_url, headers=jira_headers)
+        if comments_response.status_code == 200:
+            issue["comments"] = comments_response.json().get("comments", [])
+        else:
+            issue["comments"] = []
+
+    save_to_excel(issues, jira_file)
+
+    # Fetch active users from Dojo API
+    dojo_url = "https://dojo.defect.com/api/v2/users/?is_active=true"
+    dojo_headers = {
+        "Authorization": f"Token {input('Enter Dojo API Token: ')}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    dojo_params = {"limit": 500, "offset": 0}
+
+    print("Fetching active users from Dojo API...")
+    active_users = get_active_users(dojo_url, dojo_headers, dojo_params)
+    usernames = [user["username"] for user in active_users.get("results", [])]
+    print(f"Active users fetched: {len(usernames)}")
+
+    # Filter data by usernames
+    print("Filtering data by usernames...")
+    filter_data_by_usernames(jira_file, usernames, filtered_file)
+
+if __name__ == "__main__":
+    main()
