@@ -1,0 +1,47 @@
+import pandas as pd
+
+# Load the Excel files
+data_df = pd.read_excel('data.xlsx')  # Contains the data with the columns to be checked
+usernames_df = pd.read_excel('usernames.xlsx')  # Contains the Keywords and Usernames column
+
+# Extract keywords from the 'Usernames' column of usernames.xlsx
+keywords = usernames_df['Usernames'].dropna().tolist()
+
+# Identify the comment columns by checking all columns except 'Issue key'
+comment_columns = [col for col in data_df.columns if col != 'Issue key']  # You can customize this
+
+# Create a new dataframe for the output with 'Issue key', 'Comment.1', 'Comment.2', ..., 'Comment.n'
+output_data = []
+
+# Iterate through each row of the data_df
+for index, row in data_df.iterrows():
+    issue_key = row['Issue key']  # Assuming the Issue key is in the column 'Issue key'
+    comments = []  # List to store comments where keywords are found
+
+    # Iterate over the comment columns
+    for col in comment_columns:
+        if pd.notna(row[col]):  # Check if the column is not empty
+            comment_text = row[col]
+            
+            # Check if any of the keywords are found in the comment
+            for keyword in keywords:
+                if keyword.lower() in str(comment_text).lower():  # Case-insensitive keyword matching
+                    comments.append(comment_text)
+                    break  # Stop after first match in this comment column
+    
+    # If comments are found, assign them to 'Comment.1', 'Comment.2', etc.
+    # Otherwise, leave them as blank
+    comment_columns_result = [comments[i] if i < len(comments) else '' for i in range(2)]  # You can extend this list as needed
+    
+    # Ensure that we have enough columns (e.g., 'Comment.1', 'Comment.2')
+    while len(comment_columns_result) < 2:
+        comment_columns_result.append('')  # Add blanks if there are fewer than 2 comments
+    
+    # Append the result to the output list (Issue key + comment columns)
+    output_data.append([issue_key] + comment_columns_result)
+
+# Create a new DataFrame for the output and save it to a new Excel file
+output_df = pd.DataFrame(output_data, columns=['Issue key', 'Comment.1', 'Comment.2'])
+output_df.to_excel('output.xlsx', index=False)
+
+print("Output has been saved to output.xlsx")
