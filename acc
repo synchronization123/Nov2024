@@ -1,0 +1,27 @@
+import pandas as pd
+
+# Load usernames.xlsx containing keywords
+usernames_file = "usernames.xlsx"
+usernames_df = pd.read_excel(usernames_file)
+keywords = usernames_df['Keywords'].astype(str).tolist()
+
+# Load the issues file
+issues_file = "issues.xlsx"  # Replace with the file containing issues
+issues_df = pd.read_excel(issues_file)
+
+# Extract relevant columns
+comment_columns = [col for col in issues_df.columns if col.startswith("Comment")]
+output_issue_keys = []
+
+# Iterate through the rows of the issues file
+for index, row in issues_df.iterrows():
+    issue_key = row['Issue key']  # Replace with the actual column name for issue key
+    comments = row[comment_columns].astype(str).tolist()  # Convert comments to strings
+    # Check if at least one keyword is in the comments
+    if not any(keyword in comment for keyword in keywords for comment in comments):
+        output_issue_keys.append(issue_key)
+
+# Output the result
+output_df = pd.DataFrame({"Issue key": output_issue_keys})
+output_df.to_excel("output.xlsx", index=False)
+print(f"Output saved to output.xlsx with {len(output_issue_keys)} issue keys.")
