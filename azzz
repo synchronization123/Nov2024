@@ -1,0 +1,41 @@
+import pandas as pd
+
+# Load input files
+jira_file = 'jiraoutput.xlsx'
+usernames_file = 'usernames.xlsx'
+
+jira_df = pd.read_excel(jira_file)
+usernames_df = pd.read_excel(usernames_file)
+
+# Ensure columns for output
+jira_df['Matched Keywords'] = ''
+jira_df['Matched Details'] = ''
+jira_df['Status'] = ''
+
+# Iterate through each keyword in usernames.xlsx
+for _, username_row in usernames_df.iterrows():
+    keyword = str(username_row[0]).strip()  # Assuming keyword is in the first column
+    found = False
+
+    for index, jira_row in jira_df.iterrows():
+        # Check if the keyword exists in any cell of the row
+        if jira_row.astype(str).str.contains(keyword, case=False, na=False).any():
+            found = True
+            matching_cells = jira_row[jira_row.astype(str).str.contains(keyword, case=False, na=False)]
+            # Append the matched data
+            jira_df.at[index, 'Matched Keywords'] += (keyword + '; ')
+            jira_df.at[index, 'Matched Details'] += (' | '.join(matching_cells.astype(str)) + '; ')
+
+    if not found:
+        # Append a row with "No Comment Found" if keyword is not found
+        jira_df.loc[len(jira_df)] = {
+            'Matched Keywords': keyword,
+            'Matched Details': "No Match Found",
+            'Status': "No Match"
+        }
+
+# Save the updated dataframe to an output file
+output_file = 'jiraoutput_updated.xlsx'
+jira_df.to_excel(output_file, index=False)
+
+print(f"Updated data written to {output_file}")
