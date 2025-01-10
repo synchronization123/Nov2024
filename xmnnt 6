@@ -1,0 +1,16 @@
+import pandas as pd
+
+# Load Excel files
+excel_a = pd.read_excel('Excel_A.xlsx')
+excel_b = pd.read_excel('Excel_B.xlsx')
+
+# Select only the required columns from Excel A
+excel_a = excel_a[['Summary', 'Issue key', 'Issue Type', 'Status', 'Security', 'QA Verified Version']]
+
+# Perform VLOOKUP (merge Excel A with Excel B on 'Issue key')
+result = pd.merge(excel_a, excel_b, on='Issue key', how='left')
+
+# Save the result to a new Excel file
+result.to_excel('result.xlsx', index=False)
+
+print("VLOOKUP completed. Result saved to result.xlsx")
