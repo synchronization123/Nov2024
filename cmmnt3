@@ -1,0 +1,61 @@
+import pandas as pd
+
+# Input and output file paths
+input_file = "Filtered_JiraData.xlsx"
+output_file = "Filtered_Comments_JiraData.xlsx"
+
+# Load the Excel file
+jira_data = pd.read_excel(input_file, sheet_name=0)
+
+# Load the Keywords from the previous Excel (usernames.xlsx or similar)
+usernames_file = "usernames.xlsx"
+usernames_data = pd.read_excel(usernames_file, sheet_name=0)
+
+# Extract keywords from usernames.xlsx and convert them to lowercase for case-insensitive matching
+keywords = usernames_data["Keywords"].str.lower().tolist()
+
+# Function to filter columns where keywords are found
+def filter_comments_by_keywords(df, keywords):
+    # Find all columns that start with "Comment"
+    comment_columns = [col for col in df.columns if col.startswith("Comment")]
+    
+    # Prepare an empty list to store the final comment columns for each row
+    filtered_comments = []
+    
+    # Iterate over each row
+    for index, row in df.iterrows():
+        # Create a new row to retain only the columns with matching keywords
+        new_row = row.copy()  # Make a copy of the current row
+        
+        # Flag to check if any comment column has a keyword match
+        keyword_found = False
+        
+        # Iterate over comment columns to check for matching keywords
+        for col in comment_columns:
+            if row[col] and any(keyword in str(row[col]).lower() for keyword in keywords):
+                keyword_found = True
+            else:
+                new_row[col] = "not found"  # Mark as not found if no keyword match
+        
+        # If no keyword found in any comment column, mark them as "not found"
+        if not keyword_found:
+            # If no keyword was found, make all comment columns "not found" for this row
+            for col in comment_columns:
+                new_row[col] = "not found"
+        
+        filtered_comments.append(new_row)  # Append the updated row to the list
+    
+    # Create a new DataFrame from the updated rows
+    filtered_df = pd.DataFrame(filtered_comments)
+    
+    # Include 'Issue key' column and only keep 'Comment' columns that have matching keywords
+    final_columns = ['Issue key'] + [col for col in filtered_df.columns if col.startswith("Comment") and any(filtered_df[col] != "not found")]
+    return filtered_df[final_columns]
+
+# Filter out the comment columns based on keyword presence
+filtered_data = filter_comments_by_keywords(jira_data, keywords)
+
+# Write the filtered data to a new Excel file
+filtered_data.to_excel(output_file, index=False)
+
+print(f"Filtered data written to {output_file}")
