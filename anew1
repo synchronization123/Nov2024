@@ -1,0 +1,68 @@
+import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
+
+# Input file paths
+jira_file = "Jiradata.xlsx"
+usernames_file = "usernames.xlsx"
+output_file = "Filtered_JiraData.xlsx"
+
+# Load the Excel files
+jira_data = pd.read_excel(jira_file, sheet_name=0)
+usernames_data = pd.read_excel(usernames_file, sheet_name=0)
+
+# Extract keywords from usernames.xlsx and convert them to lowercase for case-insensitive matching
+keywords = usernames_data["Keywords"].str.lower().tolist()
+
+# Function to concatenate columns dynamically (excluding Comment columns)
+def concatenate_columns(df, prefix, max_columns):
+    columns = [f"{prefix}.{i}" if i > 0 else prefix for i in range(max_columns)]
+    valid_columns = [col for col in columns if col in df.columns]
+    return df[valid_columns].apply(lambda row: ','.join(row.dropna().astype(str)), axis=1)
+
+# Extract all Comment columns as-is
+comment_columns = [col for col in jira_data.columns if col.startswith("Comment")]
+
+# Process Jiradata.xlsx
+jira_data["Component Concatenated"] = concatenate_columns(jira_data, "Component/s", 100)
+jira_data["Build Concatenated"] = concatenate_columns(jira_data, "Custom field(Build(s))", 100)
+jira_data["QA Verified Version"] = concatenate_columns(jira_data, "Custom field (QA Verified Version)", 100)
+
+# Identify "Security" in Component Concatenated
+jira_data["Security"] = jira_data["Component Concatenated"].apply(
+    lambda x: "Security" if any(kw in x.lower() for kw in ["security", "appsecurity"]) else ""
+)
+
+# Flag rows based on keyword presence
+jira_data["Keyword Found"] = jira_data.apply(
+    lambda row: any(keyword in row.astype(str).str.lower().to_string() for keyword in keywords), axis=1
+)
+
+# Select required columns for output
+output_columns = [
+    "Summary", "Issue key", "Issue Type", "Status",
+    "Component Concatenated", "Security",
+    "Build Concatenated", "QA Verified Version"
+] + comment_columns + ["Keyword Found"]  # Include all Comment columns and flag
+
+filtered_output = jira_data[output_columns]
+
+# Write the data to an Excel file
+filtered_output.to_excel(output_file, index=False)
+
+# Apply red highlighting for rows where "Keyword Found" is False
+wb = load_workbook(output_file)
+ws = wb.active
+red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+
+# Iterate through rows and apply red fill for rows where "Keyword Found" is False
+for row in range(2, ws.max_row + 1):  # Skip header row
+    if ws[f"{chr(65 + output_columns.index('Keyword Found'))}{row}"].value == False:
+        for col in range(1, ws.max_column + 1):  # Iterate through all columns
+            ws[f"{chr(64 + col)}{row}"].fill = red_fill
+
+# Remove the "Keyword Found" column before saving
+ws.delete_cols(output_columns.index("Keyword Found") + 1)
+wb.save(output_file)
+
+print(f"Filtered data with highlighting written to {output_file}")
