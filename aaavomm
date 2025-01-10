@@ -1,0 +1,42 @@
+import pandas as pd
+
+# Input and output file paths
+input_file = "Filtered_JiraData.xlsx"
+output_file = "Filtered_Comments_JiraData.xlsx"
+
+# Load the Excel file
+jira_data = pd.read_excel(input_file, sheet_name=0)
+
+# Load the Keywords from the previous Excel (usernames.xlsx or similar)
+usernames_file = "usernames.xlsx"
+usernames_data = pd.read_excel(usernames_file, sheet_name=0)
+
+# Extract keywords from usernames.xlsx and convert them to lowercase for case-insensitive matching
+keywords = usernames_data["Keywords"].str.lower().tolist()
+
+# Function to filter columns where keywords are found
+def filter_comments_by_keywords(df, keywords):
+    # Find all columns that start with "Comment"
+    comment_columns = [col for col in df.columns if col.startswith("Comment")]
+    
+    # Filter the comment columns based on keywords
+    filtered_comments = {}
+    for col in comment_columns:
+        if df[col].str.contains('|'.join(keywords), case=False, na=False).any():  # Case-insensitive search
+            filtered_comments[col] = df[col]
+    
+    return filtered_comments
+
+# Filter out the comment columns based on keyword presence
+filtered_comment_columns = filter_comments_by_keywords(jira_data, keywords)
+
+# All other columns except Comment columns
+other_columns = [col for col in jira_data.columns if not col.startswith("Comment")]
+
+# Combine the non-comment columns and the filtered comment columns
+final_data = jira_data[other_columns].join(filtered_comment_columns)
+
+# Write the filtered data to a new Excel file
+final_data.to_excel(output_file, index=False)
+
+print(f"Filtered data written to {output_file}")
