@@ -1,0 +1,133 @@
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import date
+
+# User inputs
+versions = input("Enter versions (comma-separated): ")
+username = input("Enter username (without @ and domain): ")
+
+# Process inputs
+versions_list = versions.split(",")
+today_date = date.today().strftime("%Y-%m-%d")
+api_token_jira = "jdjdjdjjd"
+api_token_dojo = "frddd"
+jira_api = "https://jira.crm.com/rest/api/2/search?jql="
+dojo_api_users = "https://dojo.xrm.com/api/v2/users/?is_active=true&limit=100&offset=0"
+dojo_api_engagements = "https://dojo.xrm.com/api/v2/engagements"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {api_token_jira}"
+}
+dojo_headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Token {api_token_dojo}"
+}
+
+# Construct JQL queries
+jql1 = f'(labels in ({versions}) OR "Build(s)" in ({versions}))'
+jql2 = f'(labels in ({versions}))'
+
+# Fetch Jira counts
+def fetch_jira_count(jql):
+    response = requests.get(f"{jira_api}{jql}&maxResults=500", headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("total", 0)
+    return 0
+
+count_jql1 = fetch_jira_count(jql1)
+count_jql2 = fetch_jira_count(jql2)
+
+# Fetch Dojo user ID and email
+response_users = requests.get(dojo_api_users, headers=dojo_headers)
+user_id = None
+user_email = None
+if response_users.status_code == 200:
+    users_data = response_users.json()
+    for user in users_data.get("results", []):
+        if username in user["username"]:
+            user_id = user["id"]
+            user_email = user["email"]
+            break
+
+if not user_id or not user_email:
+    print(f"User {username} not found or does not have an email in Dojo.")
+    exit()
+
+# Create Dojo engagement
+engagement_name = f"{versions} - mytestcase"
+engagement_data = {
+    "tags": ["testing123"],
+    "name": engagement_name,
+    "target_start": today_date,
+    "target_end": today_date,
+    "status": "Not Started",
+    "engagement_type": "Interactive",
+    "lead": user_id,
+    "product": 33
+}
+
+response_engagement = requests.post(dojo_api_engagements, json=engagement_data, headers=dojo_headers)
+if response_engagement.status_code != 201:
+    print("Failed to create Dojo engagement.")
+    exit()
+
+# Generate HTML content for email body
+html_content = f"""
+<html>
+<head><title>Version Report</title></head>
+<body>
+    <h1>Version History</h1>
+    <table border="1">
+        <tr>
+            <th>Details</th>
+            <td>{versions}</td>
+        </tr>
+        <tr>
+            <th>JQL (Performance)</th>
+            <td>{jql1}</td>
+        </tr>
+        <tr>
+            <th>Comment</th>
+            <td>Count: {count_jql1}</td>
+        </tr>
+        <tr>
+            <th>JQL2</th>
+            <td>{jql2}</td>
+        </tr>
+        <tr>
+            <th>Total Count</th>
+            <td>{count_jql2}</td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+# Send email notification
+smtp_server = "email-smtp.india.5.amazonaws.com"
+smtp_port = 456
+sender_email = "hdjdjdjf"
+email_password = "jdkdkkd"
+recipient_email = "djdjdj"
+cc_emails = ["djdjjd", "djjdjd"]
+all_recipients = [recipient_email, user_email] + cc_emails
+
+# Email setup
+msg = MIMEMultipart()
+msg["From"] = "crm"
+msg["To"] = recipient_email
+msg["Cc"] = ", ".join(cc_emails)
+msg["Subject"] = versions  # Email subject set to the entered versions
+
+msg.attach(MIMEText(html_content, "html"))  # Add the HTML content to the email body
+
+try:
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.login(sender_email, email_password)
+        server.sendmail(sender_email, all_recipients, msg.as_string())
+    print("Email sent successfully.")
+except Exception as e:
+    print(f"Failed to send email: {e}")
