@@ -1,0 +1,83 @@
+import requests
+
+# Step 1: User Inputs
+print("Step 1: Collecting user inputs...")
+versions = input("Enter versions (comma-separated): ").strip()
+
+# Parse the first version from the input for the filename
+version = versions.split(",")[0].strip()
+filename = f"{version}.html"
+print(f"Output file will be saved as: {filename}")
+
+# API Tokens and URLs
+api_token_jira = "jdjdjdjjd"
+jira_api = "https://jira.crm.com/rest/api/2/search?jql="
+
+# Headers
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {api_token_jira}"
+}
+
+# Step 2: Construct JQL Queries
+print("Step 2: Constructing JQL queries...")
+jql1 = f'(labels in ({versions}) OR "Build(s)" in ({versions}))'
+jql2 = f'(labels in ({versions}))'
+print(f"JQL1: {jql1}")
+print(f"JQL2: {jql2}")
+
+# Step 3: Fetch Jira Counts
+def fetch_jira_count(jql):
+    print(f"Fetching data for JQL: {jql}")
+    response = requests.get(f"{jira_api}{jql}&maxResults=500", headers=headers)
+    if response.status_code == 200:
+        print(f"Data fetched successfully for JQL: {jql}")
+        data = response.json()
+        return data.get("total", 0)
+    print(f"Failed to fetch data for JQL: {jql}. Status Code: {response.status_code}")
+    return 0
+
+print("Step 3: Fetching Jira counts...")
+count_jql1 = fetch_jira_count(jql1)
+count_jql2 = fetch_jira_count(jql2)
+
+# Step 4: Prepare HTML Output
+print("Step 4: Preparing HTML output...")
+
+html_content = f"""
+<html>
+<head><title>Version Report</title></head>
+<body>
+    <h1>Version History</h1>
+    <table border="1">
+        <tr>
+            <th>Details</th>
+            <td>{versions}</td>
+        </tr>
+        <tr>
+            <th>JQL (Performance)</th>
+            <td>{jql1}</td>
+        </tr>
+        <tr>
+            <th>Comment</th>
+            <td>Count: {count_jql1}</td>
+        </tr>
+        <tr>
+            <th>JQL2</th>
+            <td>{jql2}</td>
+        </tr>
+        <tr>
+            <th>Total Count</th>
+            <td>{count_jql2}</td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+# Step 5: Save HTML to Version File
+print(f"Step 5: Saving HTML to {filename}...")
+with open(filename, "w") as file:
+    file.write(html_content)
+
+print(f"HTML output saved successfully as {filename}.")
