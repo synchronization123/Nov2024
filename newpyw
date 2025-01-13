@@ -1,0 +1,143 @@
+import requests
+from tkinter import Tk, Label, Entry, Button, Text, Scrollbar, END, messagebox
+import datetime
+
+# Constants
+API_TOKEN_JIRA = "jdjdjdjjd"
+JIRA_API = "https://jira.crm.com/rest/api/2/search?jql="
+HEADERS = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {API_TOKEN_JIRA}"
+}
+
+# Fetch Jira Counts
+def fetch_jira_count(jql):
+    try:
+        response = requests.get(f"{JIRA_API}{jql}&maxResults=500", headers=HEADERS)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("total", 0)
+        else:
+            messagebox.showerror("Error", f"Failed to fetch data for JQL: {jql}\nStatus Code: {response.status_code}")
+            return 0
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred while fetching data: {e}")
+        return 0
+
+# Generate Report
+def generate_report():
+    versions = version_input.get().strip()
+    if not versions:
+        messagebox.showerror("Error", "Please enter versions.")
+        return
+
+    # Parse the first version for the filename
+    version = versions.split(",")[0].strip()
+    filename = f"{version}.html"
+
+    # Construct JQL Queries
+    jql1 = f'(labels in ({versions}) OR "Build(s)" in ({versions}))'
+    jql2 = f'(labels in ({versions}))'
+
+    # Fetch Jira Counts
+    count_jql1 = fetch_jira_count(jql1)
+    count_jql2 = fetch_jira_count(jql2)
+
+    # Prepare HTML Content
+    html_content = f"""
+    <html>
+    <head>
+        <title>Version Report</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 20px;
+            }}
+            h1 {{
+                text-align: center;
+                color: #333;
+            }}
+            table {{
+                border-collapse: collapse;
+                width: 100%;
+                margin-top: 20px;
+            }}
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 10px;
+            }}
+            th {{
+                background-color: #f2f2f2;
+                text-align: right;
+            }}
+            td {{
+                text-align: left;
+            }}
+            .spacer {{
+                height: 20px;
+                border: none;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>Version History</h1>
+        <table>
+            <tr>
+                <th>Details</th>
+                <td>{versions}</td>
+            </tr>
+            <tr>
+                <th>JQL (Performance)</th>
+                <td>{jql1}</td>
+            </tr>
+            <tr class="spacer"></tr>
+            <tr>
+                <th>Comment</th>
+                <td>Count: {count_jql1}</td>
+            </tr>
+            <tr>
+                <th>JQL2</th>
+                <td>{jql2}</td>
+            </tr>
+            <tr>
+                <th>Total Count</th>
+                <td>{count_jql2}</td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    # Save HTML File
+    try:
+        with open(filename, "w") as file:
+            file.write(html_content)
+        result_text.delete(1.0, END)
+        result_text.insert(END, f"HTML report saved as: {filename}\n")
+        result_text.insert(END, f"JQL1 Count: {count_jql1}\n")
+        result_text.insert(END, f"JQL2 Count: {count_jql2}\n")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to save HTML file: {e}")
+
+# Create Main Window
+root = Tk()
+root.title("Version Report Generator")
+root.geometry("600x400")  # Medium-sized window
+
+# Labels and Inputs
+Label(root, text="Enter Versions (comma-separated):").pack(pady=10)
+version_input = Entry(root, width=50)
+version_input.pack(pady=5)
+
+# Generate Button
+Button(root, text="Generate Report", command=generate_report, bg="blue", fg="white").pack(pady=10)
+
+# Results Display
+result_text = Text(root, height=10, width=70)
+result_text.pack(pady=10)
+scrollbar = Scrollbar(root, command=result_text.yview)
+result_text.configure(yscrollcommand=scrollbar.set)
+scrollbar.pack(side="right", fill="y")
+
+# Start the Application
+root.mainloop()
