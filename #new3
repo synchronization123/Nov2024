@@ -1,0 +1,165 @@
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import date
+
+# Step 1: User Inputs
+print("Step 1: Collecting user inputs...")
+versions = input("Enter versions (comma-separated): ").strip()
+raw_username = input("Enter username (in email format): ").strip()
+
+# Parse username by appending @gmail.com
+if "@" not in raw_username:
+    user_email = f"{raw_username}@gmail.com"
+else:
+    user_email = raw_username
+
+username = raw_username.split("@")[0]
+print(f"Parsed username: {username}, Email constructed: {user_email}")
+
+versions_list = versions.split(",")
+today_date = date.today().strftime("%Y-%m-%d")
+
+# API Tokens and URLs
+api_token_jira = "jdjdjdjjd"
+api_token_dojo = "frddd"
+jira_api = "https://jira.crm.com/rest/api/2/search?jql="
+dojo_api_users = "https://dojo.xrm.com/api/v2/users/?is_active=true&limit=100&offset=0"
+dojo_api_engagements = "https://dojo.xrm.com/api/v2/engagements"
+
+# Headers
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {api_token_jira}"
+}
+dojo_headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Token {api_token_dojo}"
+}
+
+# Step 2: Construct JQL Queries
+print("Step 2: Constructing JQL queries...")
+jql1 = f'(labels in ({versions}) OR "Build(s)" in ({versions}))'
+jql2 = f'(labels in ({versions}))'
+print(f"JQL1: {jql1}")
+print(f"JQL2: {jql2}")
+
+# Step 3: Fetch Jira Counts
+def fetch_jira_count(jql):
+    print(f"Fetching data for JQL: {jql}")
+    response = requests.get(f"{jira_api}{jql}&maxResults=500", headers=headers)
+    if response.status_code == 200:
+        print(f"Data fetched successfully for JQL: {jql}")
+        data = response.json()
+        return data.get("total", 0)
+    print(f"Failed to fetch data for JQL: {jql}. Status Code: {response.status_code}")
+    return 0
+
+print("Step 3: Fetching Jira counts...")
+count_jql1 = fetch_jira_count(jql1)
+count_jql2 = fetch_jira_count(jql2)
+
+# Step 4: Fetch Dojo User ID
+print("Step 4: Fetching Dojo user ID and email...")
+response_users = requests.get(dojo_api_users, headers=dojo_headers)
+user_id = None
+if response_users.status_code == 200:
+    print("Dojo users fetched successfully.")
+    users_data = response_users.json()
+    for user in users_data.get("results", []):
+        if username == user["username"]:
+            user_id = user["id"]
+            print(f"User found: ID = {user_id}, Email = {user_email}")
+            break
+else:
+    print(f"Failed to fetch Dojo users. Status Code: {response_users.status_code}")
+
+if not user_id:
+    print(f"User {username} not found in Dojo.")
+    exit()
+
+# Step 5: Create Dojo Engagement
+print("Step 5: Creating Dojo engagement...")
+engagement_name = f"{versions} - mytestcase"
+engagement_data = {
+    "tags": ["testing123"],
+    "name": engagement_name,
+    "target_start": today_date,
+    "target_end": today_date,
+    "status": "Not Started",
+    "engagement_type": "Interactive",
+    "lead": user_id,
+    "product": 33
+}
+
+response_engagement = requests.post(dojo_api_engagements, json=engagement_data, headers=dojo_headers)
+if response_engagement.status_code == 201:
+    print("Dojo engagement created successfully.")
+else:
+    print(f"Failed to create Dojo engagement. Status Code: {response_engagement.status_code}")
+    exit()
+
+# Step 6: Prepare Email Content
+print("Step 6: Preparing email content...")
+html_content = f"""
+<html>
+<head><title>Version Report</title></head>
+<body>
+    <h1>Version History</h1>
+    <table border="1">
+        <tr>
+            <th>Details</th>
+            <td>{versions}</td>
+        </tr>
+        <tr>
+            <th>JQL (Performance)</th>
+            <td>{jql1}</td>
+        </tr>
+        <tr>
+            <th>Comment</th>
+            <td>Count: {count_jql1}</td>
+        </tr>
+        <tr>
+            <th>JQL2</th>
+            <td>{jql2}</td>
+        </tr>
+        <tr>
+            <th>Total Count</th>
+            <td>{count_jql2}</td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+# Step 7: Send Email
+print("Step 7: Sending email...")
+smtp_host = "email-smtp.india.5.amazonaws.com"
+smtp_port = 667
+smtp_username = "djdjjdd"
+smtp_password = "jdkdkdd"
+sender_name = "crm"
+sender_email = "djdjdj"
+recipient_emails = ["recipient1@example.com", user_email]
+cc_emails = ["cc1@example.com", "cc2@example.com"]
+all_recipients = recipient_emails + cc_emails
+
+msg = MIMEMultipart()
+msg["From"] = f"{sender_name} <{sender_email}>"
+msg["To"] = ", ".join(recipient_emails)
+msg["Cc"] = ", ".join(cc_emails)
+msg["Subject"] = versions
+
+msg.attach(MIMEText(html_content, "html"))
+
+try:
+    print(f"Connecting to SMTP server: {smtp_host}:{smtp_port}")
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        print("Logging into SMTP server...")
+        server.login(smtp_username, smtp_password)
+        print("Sending email...")
+        server.sendmail(sender_email, all_recipients, msg.as_string())
+    print("Email sent successfully.")
+except Exception as e:
+    print(f"Failed to send email: {e}")
