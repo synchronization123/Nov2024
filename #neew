@@ -1,0 +1,124 @@
+import requests
+from tkinter import Tk, simpledialog, messagebox
+import datetime
+
+# Initialize the GUI root (hidden)
+root = Tk()
+root.withdraw()  # Hide the root window
+
+# Collect user input for versions
+versions = simpledialog.askstring(
+    "Input Versions", 
+    "Enter versions (comma-separated):"
+)
+if not versions:
+    messagebox.showerror("Error", "No versions entered. Exiting.")
+    exit()
+
+# Parse the first version for the filename
+version = versions.split(",")[0].strip()
+filename = f"{version}.html"
+
+# API Tokens and URLs
+api_token_jira = "jdjdjdjjd"
+jira_api = "https://jira.crm.com/rest/api/2/search?jql="
+
+# Headers
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {api_token_jira}"
+}
+
+# Construct JQL Queries
+jql1 = f'(labels in ({versions}) OR "Build(s)" in ({versions}))'
+jql2 = f'(labels in ({versions}))'
+
+# Fetch Jira Counts
+def fetch_jira_count(jql):
+    try:
+        response = requests.get(f"{jira_api}{jql}&maxResults=500", headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("total", 0)
+        else:
+            messagebox.showerror("Error", f"Failed to fetch data for JQL: {jql}\nStatus Code: {response.status_code}")
+            return 0
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred while fetching data: {e}")
+        return 0
+
+count_jql1 = fetch_jira_count(jql1)
+count_jql2 = fetch_jira_count(jql2)
+
+# Prepare HTML Content
+html_content = f"""
+<html>
+<head>
+    <title>Version Report</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }}
+        h1 {{
+            text-align: center;
+            color: #333;
+        }}
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 10px;
+        }}
+        th {{
+            background-color: #f2f2f2;
+            text-align: right;
+        }}
+        td {{
+            text-align: left;
+        }}
+        .spacer {{
+            height: 20px;
+            border: none;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Version History</h1>
+    <table>
+        <tr>
+            <th>Details</th>
+            <td>{versions}</td>
+        </tr>
+        <tr>
+            <th>JQL (Performance)</th>
+            <td>{jql1}</td>
+        </tr>
+        <tr class="spacer"></tr>
+        <tr>
+            <th>Comment</th>
+            <td>Count: {count_jql1}</td>
+        </tr>
+        <tr>
+            <th>JQL2</th>
+            <td>{jql2}</td>
+        </tr>
+        <tr>
+            <th>Total Count</th>
+            <td>{count_jql2}</td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+# Save HTML File
+try:
+    with open(filename, "w") as file:
+        file.write(html_content)
+    messagebox.showinfo("Success", f"HTML output saved successfully as {filename}.")
+except Exception as e:
+    messagebox.showerror("Error", f"Failed to save HTML file: {e}")
