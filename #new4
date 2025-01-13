@@ -1,0 +1,114 @@
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import date
+
+# User Inputs
+print("Step 1: Collecting user inputs...")
+versions = input("Enter versions (comma-separated): ").strip()
+raw_username = input("Enter username (without domain): ").strip()
+
+# Construct user email
+user_email = f"{raw_username}@gmail.com"
+print(f"Constructed email: {user_email}")
+
+versions_list = versions.split(",")
+today_date = date.today().strftime("%Y-%m-%d")
+
+# API Tokens and URLs
+api_token_dojo = "frddd"
+dojo_api_users = "https://dojo.xrm.com/api/v2/users/?is_active=true&limit=100&offset=0"
+dojo_api_engagements = "https://dojo.xrm.com/api/v2/engagements"
+
+# Headers
+dojo_headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Token {api_token_dojo}"
+}
+
+# Step 2: Fetch Dojo User ID
+print("Step 2: Fetching Dojo user ID...")
+response_users = requests.get(dojo_api_users, headers=dojo_headers)
+user_id = None
+
+if response_users.status_code == 200:
+    print("Dojo users fetched successfully.")
+    users_data = response_users.json()
+    for user in users_data.get("results", []):
+        print(f"Checking user: {user['email']}")
+        if user["email"].lower() == user_email.lower():
+            user_id = user["id"]
+            print(f"User found: ID = {user_id}, Email = {user_email}")
+            break
+else:
+    print(f"Failed to fetch Dojo users. Status Code: {response_users.status_code}")
+
+if not user_id:
+    print(f"User {user_email} not found in Dojo.")
+    exit()
+
+# Step 3: Create Dojo Engagement
+print("Step 3: Creating Dojo engagement...")
+engagement_name = f"{versions} - mytestcase"
+engagement_data = {
+    "tags": ["testing123"],
+    "name": engagement_name,
+    "target_start": today_date,
+    "target_end": today_date,
+    "status": "Not Started",
+    "engagement_type": "Interactive",
+    "lead": user_id,  # Use fetched user ID here
+    "product": 33
+}
+
+response_engagement = requests.post(dojo_api_engagements, json=engagement_data, headers=dojo_headers)
+if response_engagement.status_code == 201:
+    print("Dojo engagement created successfully.")
+else:
+    print(f"Failed to create Dojo engagement. Status Code: {response_engagement.status_code}")
+    print(f"Response: {response_engagement.json()}")
+    exit()
+
+# Step 4: Send Email
+print("Step 4: Sending email...")
+smtp_host = "email-smtp.india.5.amazonaws.com"
+smtp_port = 667
+smtp_username = "djdjjdd"
+smtp_password = "jdkdkdd"
+sender_name = "crm"
+sender_email = "djdjdj"
+recipient_emails = [user_email]
+cc_emails = ["cc1@example.com", "cc2@example.com"]
+all_recipients = recipient_emails + cc_emails
+
+msg = MIMEMultipart()
+msg["From"] = f"{sender_name} <{sender_email}>"
+msg["To"] = ", ".join(recipient_emails)
+msg["Cc"] = ", ".join(cc_emails)
+msg["Subject"] = versions
+
+email_body = f"""
+<html>
+<body>
+    <h1>Engagement Created</h1>
+    <p>Details:</p>
+    <ul>
+        <li>Engagement Name: {engagement_name}</li>
+        <li>Assigned to: {user_email}</li>
+    </ul>
+</body>
+</html>
+"""
+msg.attach(MIMEText(email_body, "html"))
+
+try:
+    print(f"Connecting to SMTP server: {smtp_host}:{smtp_port}")
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        print("Logging into SMTP server...")
+        server.login(smtp_username, smtp_password)
+        print("Sending email...")
+        server.sendmail(sender_email, all_recipients, msg.as_string())
+    print("Email sent successfully.")
+except Exception as e:
+    print(f"Failed to send email: {e}")
