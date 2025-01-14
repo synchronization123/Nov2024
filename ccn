@@ -1,0 +1,79 @@
+import os
+import zipfile
+import re
+import pandas as pd
+from tqdm import tqdm
+import tkinter as tk
+from tkinter import filedialog
+
+def scan_zip(zip_file, keywords_file):
+    # Extract the base name of the zip file for output
+    zip_name = os.path.splitext(os.path.basename(zip_file))[0]
+    output_file = f"{zip_name}.xlsx"
+
+    # Load keywords from Excel file
+    keywords = pd.read_excel(keywords_file, header=None).squeeze("columns").str.lower().tolist()
+
+    # Initialize results list
+    results = []
+
+    # Create a temp directory to extract files
+    temp_dir = "temp_extracted_files"
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
+    # Extract the zip file
+    with zipfile.ZipFile(zip_file, "r") as zf:
+        zf.extractall(temp_dir)
+
+    # Gather all Java and JSP files
+    all_files = []
+    for root, _, files in os.walk(temp_dir):
+        for file in files:
+            if file.endswith((".java", ".jsp")):
+                all_files.append(os.path.join(root, file))
+
+    # Set up the progress bar
+    tqdm_bar = tqdm(total=len(all_files), desc="Scanning files", unit="file", ncols=100)
+
+    # Scan files for matching import statements
+    for file_path in all_files:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
+            for line_number, line in enumerate(file, start=1):
+                # Check if the line starts with "import" (case-insensitive)
+                if line.strip().lower().startswith("import"):
+                    # Convert the line to lowercase for case-insensitive matching
+                    lower_line = line.lower()
+                    for keyword in keywords:
+                        if keyword in lower_line:
+                            results.append([file_path, line_number, line.strip(), keyword])
+
+        tqdm_bar.update(1)
+
+    tqdm_bar.close()
+
+    # Remove the temporary directory
+    for root, _, files in os.walk(temp_dir, topdown=False):
+        for file in files:
+            os.remove(os.path.join(root, file))
+        os.rmdir(root)
+
+    # Save results to Excel
+    if results:
+        df = pd.DataFrame(results, columns=["File Name", "Line Number", "Full Statement", "Matched Keyword"])
+        df.to_excel(output_file, index=False)
+        print(f"Results saved to {output_file}")
+    else:
+        print("No matches found.")
+
+if __name__ == "__main__":
+    # GUI to select the zip file and keyword file
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    zip_file = filedialog.askopenfilename(title="Select ZIP File", filetypes=[("ZIP files", "*.zip")])
+    keywords_file = filedialog.askopenfilename(title="Select Keywords Excel File", filetypes=[("Excel files", "*.xlsx")])
+
+    if zip_file and keywords_file:
+        scan_zip(zip_file, keywords_file)
+    else:
+        print("File selection canceled.")
