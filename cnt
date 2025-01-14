@@ -1,0 +1,86 @@
+import smtplib
+import requests
+import json
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+# API Configuration
+url = "https://contrast.xrm.com/Contrast/api/ng/hdjdjdjdj/scores/breakdown/trace/severity"
+headers = {
+    "Authorization": "hdjdjdjd",
+    "Api-Key": "jdjdjdj8777",
+    "Accept": "application/json"
+}
+
+# Fetching data from API
+response = requests.get(url, headers=headers)
+if response.status_code == 200:
+    data = response.json()
+else:
+    print(f"Failed to fetch data. Status code: {response.status_code}")
+    exit()
+
+# Processing API response to calculate trace counts
+critical_count = 0
+high_count = 0
+
+for trace in data.get("traces", []):
+    if trace.get("severity") == "Critical" and trace.get("status") == "Reported":
+        critical_count += 1
+    elif trace.get("severity") == "High" and trace.get("status") == "Reported":
+        high_count += 1
+
+# Preparing email content
+email_subject = "Contrast High and Critical Traces Reported"
+email_body = f"""
+<html>
+<head></head>
+<body>
+    <p>Dear Team,</p>
+    <p>Please find below the details of the reported traces:</p>
+    <table border="1" style="border-collapse: collapse; width: 50%;">
+        <tr>
+            <th>Severity</th>
+            <th>Count</th>
+        </tr>
+        <tr>
+            <td>Critical</td>
+            <td>{critical_count}</td>
+        </tr>
+        <tr>
+            <td>High</td>
+            <td>{high_count}</td>
+        </tr>
+    </table>
+    <p>Regards,<br>CRM Team</p>
+</body>
+</html>
+"""
+
+# Email Configuration
+smtp_host = "email-smtp.india.central.AWS.com"
+smtp_port = 788
+smtp_username = "ksjdjdjd"
+smtp_password = "jdjdjdjd"
+sender_name = "CRM"
+sender_email = "xrm@fmail.com"
+recipients = ["abc@gmail.com", "def@gmail.com"]
+cc_recipients = ["hig@gmail.com", "kkk@gmail.com"]
+
+# Sending email
+try:
+    msg = MIMEMultipart()
+    msg['From'] = f"{sender_name} <{sender_email}>"
+    msg['To'] = ", ".join(recipients)
+    msg['Cc'] = ", ".join(cc_recipients)
+    msg['Subject'] = email_subject
+    msg.attach(MIMEText(email_body, "html"))
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.sendmail(sender_email, recipients + cc_recipients, msg.as_string())
+    
+    print("Email sent successfully.")
+except Exception as e:
+    print(f"Failed to send email: {e}")
