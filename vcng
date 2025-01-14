@@ -1,0 +1,124 @@
+import os
+import zipfile
+import pandas as pd
+from tkinter import Tk, Label, Button, filedialog, StringVar, ttk
+from tqdm import tqdm
+import threading
+
+
+class ScannerApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Java/JSP Import Scanner")
+        self.root.geometry("600x400")
+
+        # Variables
+        self.zip_file_path = StringVar()
+        self.keywords_file_path = StringVar()
+        self.status = StringVar(value="Select files to begin scanning...")
+        self.progress = 0
+
+        # UI Components
+        Label(root, text="Java/JSP Import Scanner", font=("Arial", 16)).pack(pady=10)
+
+        Button(root, text="Select ZIP File", command=self.select_zip_file).pack(pady=5)
+        Label(root, textvariable=self.zip_file_path, wraplength=500).pack(pady=5)
+
+        Button(root, text="Select Keywords File", command=self.select_keywords_file).pack(pady=5)
+        Label(root, textvariable=self.keywords_file_path, wraplength=500).pack(pady=5)
+
+        self.scan_button = Button(root, text="Start Scanning", command=self.start_scanning, state="disabled")
+        self.scan_button.pack(pady=10)
+
+        self.progress_bar = ttk.Progressbar(root, orient="horizontal", length=400, mode="determinate")
+        self.progress_bar.pack(pady=10)
+
+        Label(root, textvariable=self.status, wraplength=500).pack(pady=10)
+
+    def select_zip_file(self):
+        file_path = filedialog.askopenfilename(title="Select ZIP File", filetypes=[("ZIP files", "*.zip")])
+        if file_path:
+            self.zip_file_path.set(file_path)
+            self.update_scan_button_state()
+
+    def select_keywords_file(self):
+        file_path = filedialog.askopenfilename(title="Select Keywords Excel File", filetypes=[("Excel files", "*.xlsx")])
+        if file_path:
+            self.keywords_file_path.set(file_path)
+            self.update_scan_button_state()
+
+    def update_scan_button_state(self):
+        if self.zip_file_path.get() and self.keywords_file_path.get():
+            self.scan_button.config(state="normal")
+
+    def start_scanning(self):
+        # Disable button to prevent multiple scans
+        self.scan_button.config(state="disabled")
+
+        # Start scanning in a new thread to keep UI responsive
+        threading.Thread(target=self.scan_zip).start()
+
+    def scan_zip(self):
+        zip_file = self.zip_file_path.get()
+        keywords_file = self.keywords_file_path.get()
+        output_file = f"{os.path.splitext(os.path.basename(zip_file))[0]}.xlsx"
+
+        # Load keywords
+        self.status.set("Loading keywords...")
+        keywords = pd.read_excel(keywords_file, header=None).squeeze("columns").str.lower().tolist()
+
+        # Extract files
+        temp_dir = "temp_extracted_files"
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+
+        with zipfile.ZipFile(zip_file, "r") as zf:
+            zf.extractall(temp_dir)
+
+        # Gather Java and JSP files
+        all_files = []
+        for root, _, files in os.walk(temp_dir):
+            for file in files:
+                if file.endswith((".java", ".jsp")):
+                    all_files.append(os.path.join(root, file))
+
+        total_files = len(all_files)
+        results = []
+        self.progress = 0
+
+        # Scan files
+        for i, file_path in enumerate(all_files):
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
+                for line_number, line in enumerate(file, start=1):
+                    if line.strip().lower().startswith("import"):
+                        lower_line = line.lower()
+                        for keyword in keywords:
+                            if keyword in lower_line:
+                                results.append([file_path, line_number, line.strip(), keyword])
+
+            # Update progress
+            self.progress = int(((i + 1) / total_files) * 100)
+            self.progress_bar["value"] = self.progress
+            self.status.set(f"Scanning... {self.progress}% completed")
+            self.root.update_idletasks()
+
+        # Remove temporary files
+        for root, _, files in os.walk(temp_dir, topdown=False):
+            for file in files:
+                os.remove(os.path.join(root, file))
+            os.rmdir(root)
+
+        # Save results
+        if results:
+            df = pd.DataFrame(results, columns=["File Name", "Line Number", "Full Statement", "Matched Keyword"])
+            df.to_excel(output_file, index=False)
+            self.status.set(f"Scanning completed! Results saved to {output_file}")
+        else:
+            self.status.set("Scanning completed! No matches found.")
+        self.scan_button.config(state="normal")
+
+
+if __name__ == "__main__":
+    root = Tk()
+    app = ScannerApp(root)
+    root.mainloop()
