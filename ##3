@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Font Color</title>
+    <style>
+        .highlight {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <p id="text">Hello! This is a test [example] with (special) characters.</p>
+    <button onclick="changeColor()">Highlight Characters</button>
+
+    <script>
+        function changeColor() {
+            let textElement = document.getElementById("text");
+            let text = textElement.innerHTML;
+
+            // Wrap specific characters in a span with a class
+            text = text.replace(/([\!])/g, '<span class="highlight">$1</span>');
+
+            textElement.innerHTML = text;
+        }
+    </script>
+</body>
+</html>
