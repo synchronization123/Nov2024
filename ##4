@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Text Color</title>
+    <style>
+        .white-text {
+            color: white;
+        }
+    </style>
+</head>
+<body style="background-color: black; color: white;">
+
+    <p id="text">Hello, World! $100 @Special Characters & More.</p>
+    <button onclick="changeColor()">Change Specific Letters</button>
+
+    <script>
+        function changeColor() {
+            let textElement = document.getElementById("text");
+            let text = textElement.innerHTML;
+
+            // Define the characters to turn white
+            let targetChars = ['o', 'W', '$', '@', '&'];
+
+            // Replace matching characters with a span that applies the white color
+            let newText = text.split('').map(char => 
+                targetChars.includes(char) ? `<span class="white-text">${char}</span>` : char
+            ).join('');
+
+            textElement.innerHTML = newText;
+        }
+    </script>
+
+</body>
+</html>
