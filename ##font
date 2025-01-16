@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Letter Color</title>
+    <style>
+        .highlight {
+            color: white;
+            background-color: black; /* Optional: To make white text visible */
+        }
+    </style>
+</head>
+<body>
+
+    <p id="text">Hello![]()World</p>
+    <button onclick="changeColor()">Change Color</button>
+
+    <script>
+        function changeColor() {
+            let textElement = document.getElementById("text");
+            let originalText = textElement.innerHTML;
+
+            // Replace specific letters or special characters with highlighted spans
+            let modifiedText = originalText.replace(/(\!||||)/g, '<span class="highlight">$1</span>');
+
+            textElement.innerHTML = modifiedText;
+        }
+    </script>
+
+</body>
+</html>
