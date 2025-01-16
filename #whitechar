@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Report with Specific Color Change</title>
+    <style>
+        .white-text {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="findings">
+        <!-- Fetched data will be displayed here -->
+    </div>
+    <button onclick="generateReport()">Generate Report</button>
+
+    <script>
+        // Simulate fetching data (findings)
+        function fetchData() {
+            return "The findings are: Hello, World! $100 @Special Characters & More.";
+        }
+
+        // Function to generate report and apply the color change
+        function generateReport() {
+            let findingsText = fetchData();  // Simulated fetched data
+            let findingsElement = document.getElementById("findings");
+            
+            // Define specific characters to change to white
+            let targetChars = ['o', 'W', '$', '@', '&'];
+
+            // Replace matching characters with span to apply the white color
+            let updatedText = findingsText.split('').map(char => 
+                targetChars.includes(char) ? `<span class="white-text">${char}</span>` : char
+            ).join('');
+
+            findingsElement.innerHTML = updatedText;
+        }
+    </script>
+
+</body>
+</html>
